@@ -1,0 +1,147 @@
+---------- MYSQL course from Oracle learning
+
+-----   Chap.1
+MySQL Enterprise Edition
+
+	Advanced Features
+
+		• High Availability
+		• Authentication
+		• Audit
+		• Encryption and TDE
+		• Firewall
+		• Masking
+
+	Management Tools
+
+		• Monitoring
+		• Backup
+		• Development
+		• Administration
+		• Migration
+
+	Support
+
+		• Technical Support
+		• Consultative Support
+		• Oracle Certifications
+
+Oracle Premier Support for MySQL
+
+		• Largest MySQL engineering and support organization
+		• Backed by the MySQL developers
+		• World-class support, in 29 languages
+		• Hot fixes and maintenance releases
+		• 24 x 7 x 365
+		• Unlimited incidents
+		• Consultative support
+		• Global scale and reach
+
+MySQL integrates into the Oracle Environment
+
+		Oracle Linux
+		Oracle GoldenGate
+		Oracle Secure Backup
+		Oracle Fusion Middleware
+		Oracle Enterprise Manager
+		Oracle Database Firewall
+		Oracle Audit Vault
+		Oracle Key Vault
+
+MySQL Websites
+
+	• http://www.mysql.com includes:
+
+		Product information
+		Services (Training, Certification, and Support)
+		White papers, webinars, and other resources
+		MySQL Enterprise Edition (trial version)
+
+	• http://dev.mysql.com includes:
+
+	Developer Zone (Forums, MySQL Engineering Blogs, and more)
+	Documentation
+	Downloads
+
+	• https://github.com/mysql
+
+		Source code for MySQL Server and other MySQL products
+
+
+Softs à installer pour labs :
+
+
+[root@edvmr1p0~#ls/stage/MySQL-Server/     
+
+	mysql-advanced-5.7.28-e17-x86_64.tar.gz
+	mysql-commercial-8.0.18-el7-x86_64.tar.gz
+	mysql-enterprise-server-8.0.18.tar
+	
+---- Configure WSL (Windows Subsystem for Linux) to use Linux Virtual Machine on Windows 11
+
+	Search and Launch "Turn windows features On or Off" on windows start menu
+	Check to enable :
+		"Virtual Machine Platform"
+		"Windows Subsystem for Linux"
+	Click OK to enable Features
+	Click "Restart Now" to apply changes
+	
+	Once restarted, open CMD terminal and run "wsl --status" for example to check wsl enabled
+	Exple : 
+		
+		C:\> ws1 --status
+			Default Distribution: docker-desktop-data
+			Default Version: 2
+			....
+
+	To update WSL : 
+	
+		C:\> ws1 --update
+	
+	NB: If Default Version of wsl is 1, update wsl to version 2 and set default version to 2 using : 
+		
+		C:\> ws1 --set-default-version 2
+		
+	
+root user : olinex / olinex
+	
+	To install linux distribution :
+	
+	Open Microsoft Store
+	Search for and click on ubuntu distribution to install it
+	
+	To update linux distribution:
+	$sudo apt update
+	
+	To launch a new connexion to linux env from windows :
+	 - Open CMD or powershell
+	 - List distribution installed with wsl version can be used to run using : 
+		$ wsl -l -v
+	 - Launch a distribution using : $ wsl -d Ubuntu  
+		In powershell, you can click and select the distribution in the windows console list
+
+	
+	To launch a new distro :
+	 - Open CMD terminal as administrator
+	 - run :
+		$ wsl --list --online
+		
+			NAME	FRIENDLY NAME
+
+			Ubuntu 			Ubuntu
+			Debian 			Debian GNU/Linux 
+			kali-linux 		Kali Linux Rolling
+			openSUSE-42 	openSUSE Leap 42
+			SLES-12 		SUSE Linux Enterprise Server v12
+			Ubuntu-16.04 	Ubuntu 16.04 LTS
+			Ubuntu 18.04	Ubuntu 18.04 LTS
+			Ubuntu-20.04	Ubuntu 20.04 LTS
+
+	To install kali-linux distro :
+	
+	c:\> wsl --install -d kali-linux
+	
+--------------------------------------------------------------------------------
+
+
+
