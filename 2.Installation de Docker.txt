@@ -1,0 +1,117 @@
+---------- Installation de Docker -------
+
+#------------- Mise en place du dépôt Docker sur ubuntu
+
+	 Install a few prerequisite packages which let apt use packages over HTTPS
+	$ sudo apt install apt-transport-https ca-certificates curl software-properties-common
+	
+	$ lsb_release -a
+	
+		No LSB modules are available.
+		Distributor ID: Ubuntu
+		Description:    Ubuntu 24.04.1 LTS
+		Release:        24.04
+		Codename:       noble
+
+	$ sudo apt install apt-transport-https ca-certificates curl software-properties-common
+
+		Reading package lists... Done
+		Building dependency tree... Done
+		Reading state information... Done
+		ca-certificates is already the newest version (20240203).
+		curl is already the newest version (8.5.0-2ubuntu10.5).
+		The following additional packages will be installed:
+		  python3-software-properties
+		The following NEW packages will be installed:
+		  apt-transport-https
+		The following packages will be upgraded:
+		  python3-software-properties software-properties-common
+		2 upgraded, 1 newly installed, 0 to remove and 32 not upgraded.
+		Need to get 48.1 kB of archives.
+		After this operation, 35.8 kB of additional disk space will be used.
+		Do you want to continue? [Y/n] Y
+		Get:1 http://archive.ubuntu.com/ubuntu noble/universe amd64 apt-transport-https all 2.7.14build2 [3974 B]
+		Get:2 http://archive.ubuntu.com/ubuntu noble-updates/main amd64 software-properties-common all 0.99.49.1 [14.4 kB]
+		Get:3 http://archive.ubuntu.com/ubuntu noble-updates/main amd64 python3-software-properties all 0.99.49.1 [29.7 kB]
+		Fetched 48.1 kB in 11s (4567 B/s)
+		Selecting previously unselected package apt-transport-https.
+		(Reading database ... 43149 files and directories currently installed.)
+		Preparing to unpack .../apt-transport-https_2.7.14build2_all.deb ...
+		Unpacking apt-transport-https (2.7.14build2) ...
+		Preparing to unpack .../software-properties-common_0.99.49.1_all.deb ...
+		Unpacking software-properties-common (0.99.49.1) over (0.99.48) ...
+		Preparing to unpack .../python3-software-properties_0.99.49.1_all.deb ...
+		Unpacking python3-software-properties (0.99.49.1) over (0.99.48) ...
+		Setting up apt-transport-https (2.7.14build2) ...
+		Setting up python3-software-properties (0.99.49.1) ...
+		Setting up software-properties-common (0.99.49.1) ...
+		Processing triggers for man-db (2.12.0-4build2) ...
+		Processing triggers for dbus (1.14.10-4ubuntu4.1) ...
+
+Then add the GPG key for the official Docker repository to your system
+	
+	$ sudo mkdir -m 0755 -p /etc/apt/keyrings
+
+# Pour copier la clé gpg de docker dans le rep local /etc/apt/keyrings:
+
+	$ curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo gpg --dearmor -o /usr/share/keyrings/docker-archive-keyring.gpg	
+	
+Add the Docker repository to APT sources:
+	
+	$ echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/docker-archive-keyring.gpg] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable" | sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
+	
+Update your existing list of packages  for the addition to be recognized:	
+
+	$ sudo apt update [--allow-insecure-repositories]   <--- Use option "--allow-insecure-repositories" in case of error due to not signed certificate
+
+Make sure you are about to install from the Docker repo instead of the default Ubuntu repo:
+
+	$ apt-cache policy docker-ce
+	
+You’ll see output like this, although the version number for Docker
+	
+	docker-ce:
+	  Installed: (none)
+	  Candidate: 5:27.3.1-1~ubuntu.24.04~noble
+	  Version table:
+		 5:27.3.1-1~ubuntu.24.04~noble 500
+			500 https://download.docker.com/linux/ubuntu noble/stable amd64 Packages
+		 5:27.3.0-1~ubuntu.24.04~noble 500
+			500 https://download.docker.com/linux/ubuntu noble/stable amd64 Packages
+		.....
+	
+	Notice that docker-ce is not installed, but the candidate for installation is from the Docker repository for Ubuntu 24.04 (noble).
+
+Finally, install Docker:
+
+	$ sudo apt install docker-ce
+
+Docker should now be installed, the daemon started, and the process enabled to start on boot. Check that it’s running:
+
+	l$ sudo systemctl status docker
+	
+	● docker.service - Docker Application Container Engine
+		 Loaded: loaded (/usr/lib/systemd/system/docker.service; enabled; preset: enabled)
+		 Active: active (running) since Sun 2024-12-08 23:34:24 EST; 2min 4s ago
+	TriggeredBy: ● docker.socket
+		   Docs: https://docs.docker.com
+	   Main PID: 11916 (dockerd)
+		  Tasks: 13
+		 Memory: 27.6M ()
+		 CGroup: /system.slice/docker.service
+				 └─11916 /usr/bin/dockerd -H fd:// --containerd=/run/containerd/containerd.sock
+
+	.....
+	
+	
+	Voir les conteneurs running ou pas:
+	
+	$ sudo docker ps
+	CONTAINER ID   IMAGE     COMMAND   CREATED   STATUS    PORTS     NAMES
+
+	Ajouter le user courant dans le group "docker" pour éviter de préciser sudo:
+	
+	$ sudo usermod -aG docker $USER
+	
+	
+
