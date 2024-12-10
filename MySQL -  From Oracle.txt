@@ -964,5 +964,201 @@ Demo 3 : Configuring MySQL service	---------------------------------
 
 	$ systemctl start mysqld	
 	
+
+Demo 4 : Upgrading MySQL service	---------------------------------
+
+1. Install 'MySQL.Shell' from the RPM file in the /stage/MySQL-Shell directory.
+
+	# cd/stage/MySQL-Shell
+	# rpm -i mysql-shell-commercial-8*.rpm
+
+	warning: mysql-shell-commercial-8.0.18-1.1.el7.x86 64.rpm: Header V3 DSA/SHAL Signature, key ID 5072e1f5: NOKEY
+
+2. Run mysqlsh to perform a check for upgrade using the following command:
+
+	# mysqlsh root@localhost --util checkForServerUpgrade
+
+		Please provide the password for 'root@localhost': oracle
+		Save password for 'root@localhost'? [Y]es/[N]o/Ne [v]er (default No): [press Enter)
+		.....
+
+3. Enter a systemctl command that stops the running mysqld service.
+
+	# systemctl stop mysqld
+
+4. Verify that the mysqld service is not running.
+
+	# systemctl status mysqld
+
+		mysqld.service MySQL Server
+		Loaded: loaded (/usr/lib/systemd/system/mysqld.service; enabled; vendor preset: disabled)
+		Active: inactive (dead) since
+		....
+
+5. Extract the MySQL Server 8.0 commercial edition binary archive from/stage/MySQL-Server to /opt.
+
+	# cd /opt
+	# tar xf /stage/MySQL-Server/mysql-commercial-8*.tar.gz
+
+6. List the contents of the /opt directory to verify that both versions of MySQL server are installed.
+
+	# ls /opt
+
+		mysql-advanced-5.7.28-e17-x86_64
+		mysql-commercial-8.0.18-e17-x86_64
+
+	- The exact version numbers might be different on your machine. However, there should be a 5.7 and 8.0 version, and both must be general availability (GA)
+		releases.
+
+7. Remove the symbolic link to/usr/local/mysql, which you created in the practice titled "Installing MySQL." It links to the directory that contains 
+	the older version of the MySQL server and is no longer required.
+
+	$ rm / usr/local/mysql
+
+		rm: remove symbolic link '/usr/local/mysql'? y
+
+8. Create a symbolic link from the newly extracted MySQL directory to /usr/local/mysql.
+
+	$ ln -s /opt/mysql-commercial-8* /usr/local/mysql
+
+9. Replace the existing mysqld.service file in the /usr/lib/systemd/system directory with the /labs/service-8.0/mysqld.service file.
+
+	# cp /labs/service-8.0/mysqld.service /usr/lib/systemd/system
+
+10. Execute systemctl daemon-reload to make systemd aware of the new service unit configuration file.
+
+	# systemctl daemon-reload
+
+11. Start the mysqld service to launch the new version of the server.
+
+	$ systemctl start mysqld
+
+12. verify that the mysqid service is running.
+
+	$ systemctl status mysqld
+
+13. Run mysql_upgrade to complete the upgrade process and ensure that there are no incompatibilities between the versions. Is this step required? 
+
+	$ mysql_upgrade -uroot -P
+
+		Enter password: oracle
+		
+	- This step is not required because MySQL server 8.0.16 or later will perform all of the upgrade process automatically when you start the server.
+
+If you are upgrading to an older release before 8.0.16. you may see the following result:
+
+	$ mysql_upgrade -uroot -p
+
+		Enter password: oracle
+
+		Checking if update is needed.
+		Checking server version.
+		Running queries to upgrade MySQL server.
+		Upgrading system table data.
+		Checking system database.
+		mysql.columns_priv 	O.K.
+		mysql.component		O.K.
+		mysql.db			O.K.
+		mysql.default_roles	O.K.
+		mysql.engine_cost	O.K.
+		....
+
+14. Use systemctl to view the full logs during the startup of the MySQL server. Can you find the logs related to the upgrade process?
+
+	$ systemctl status mysqld
 	
+15. Verify that the new version of MySQL server is now running on your system.
+
+	$ mysqld --version
+
+		/opt/mysql-commercial-8.0.18-e17-x86_64/bin/mysqld Ver 8.0.18- commercial for el? on x86 64 (MySQL Enterprise Server - Commercial)
+
+
+		
+Demo 5 : Deploying MySQL with Docker	---------------------------------
+
+1. Load the MySQL Enterprise Server Docker image into your Docker Engine and verify the image has been loaded successfully.
+
+	$ cd/stage/MySQL-Server/
+	$ docker load i mysql-enterprise-server-8.0.18.tar
+
+		4fee40bcfecf: Loading layer 124.2MB/124.2MB
+		570b2c36673a: Loading layer 305MB/305MB
+		85211a73c61b: Loading layer 8.704kB/8.704kB
+		1cf11301afd2: Loading layer 2.048kB/2.048kB
+		Loaded image: mysql/enterprise-server: 8.0
+
+	$ docker images
+
+		REPOSITORY				TAG 	IMAGE ID 			CREATED 		SIZE
+		mysql/enterprise-server	8.0		216a5e9c5del		4 weeks ago		421MB
+
+	- The image name is mysql/enterprise-server and the tag is 8.0.
+
+2. Start a MySQL Server Docker container with the name mysql1 using the MySQL server image. Check that the container is running.
+
+	$ docker run --name-mysqll -d mysql/enterprise-server:8.0
+
+		0917d09d8ff01b231407be0b37dab218ab0902047e549f3b429a2c83f7e83ac2
+
+	$ docker ps
+
+		CONTAINER ID 	IMAGE							COMMAND					CREATED 						STATUS 		PORTS 				NAMES
+		0917d09d8fEO 	mysql/enterprise-server: 8.0	"/entrypoint.sh mysq." 	28 seconds ago	Up 28 seconds	(healthy)	3306/tcp, 33060/tcp	mysql1
+
+3. Retrieve the generated root password for the mysqll container.
+
+	$ docker logs mysqll 2>&1 | grep GENERATED
+
+		[Entrypoint] GENERATED ROOT PASSWORD: SOMALASpuG, EbzOh@qIkJ3xEKm3
+
+4. Execute a mysql command-line client from the mysql1 container to connect to the MySQL server running in the container. Enter the generated password 
+	to authenticate the connection.
+
+	# docker exec it mysqll mysql -uroot -p
+
+		Enter password: SOMALASpuG, Ebzoh@qIkJ3zEKm3
+
+	mysql>
+
+5. Change the root user password with an ALTER USER statement and exit the mysql command-line client.
+
+	mysql> ALTER USER USER () IDENTIFIED BY 'MySQL8.0';
+	mysql> EXIT
+
+6. Execute a mysql command-line client from the mysql1 container to connect to the MySQL server running in the container. Enter the new password. 
+	Then exit the mysql command- client.
+
+	# docker exec -it mysqli mysql -uroot -p
+
+	Enter password: MySQL8.0
+
+	mysql> EXIT
 	
+7. Stop the MySQL server by stopping the Docker container and verify the status of the container.
+
+	$ docker stop mysql1
+
+		mysql1
+
+	$ docker ps -a
+
+	CONTAINER ID 	IMAGE 							COMMAND  				 CREATED   	 		STATUS						  	PORTS	 	NAMES
+	0917d09d8ff0	mysql/enterprise-server: 8.0	"/entrypoint.sh mysq..." About 4 minutes ago Exited (0) About a minute ago 			mysql1
+
+8. Start the MySQL Server Docker container and verify the status of the container.
+
+	$ docker start mysql1
+		mysqll
+
+	# docker ps
+
+	CONTAINER ID 	IMAGE 							COMMAND  				CREATED   	 						STATUS	  		PORTS	 		NAMES
+	0917d09d8ff0 	mysql/enterprise-server: 8.0 	"/entrypoint.sh mysq..." About 11 minutes ago Up 34 seconds	(healthy) 3306/tcp, 33060/tcp 	mysql1
+
+9. Stop the MySQL Server Docker container.
+
+	$ docker stop mysqll
+		mysql1
+
+10. Close all open Linux terminal windows.
