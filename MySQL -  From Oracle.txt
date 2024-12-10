@@ -601,7 +601,7 @@ Stopping MySQL with mysqladmin ---------------------------------
 	
 MySQL Service Files		---------------------------------
 
-On SysVInit systems, copy the mysql.server script to /etc/init.d/mysqld.
+• On SysVInit systems, copy the mysql.server script to /etc/init.d/mysqld.
 
 	Some package installers create this file automatically.
 	Call it with start, stop, or restart options.
@@ -611,11 +611,358 @@ On SysVInit systems, copy the mysql.server script to /etc/init.d/mysqld.
 		/etc/init.d/mysqld restart
 		support-files/mysql.server stop
 
-When you install MySQL from an RPM package built for systemd distributions or if you have configured systemd manually, use the "systemctl" command:
+• When you install MySQL from an RPM package built for systemd distributions or if you have configured systemd manually, use the "systemctl" command:
 
 	systemctl start mysqld
 	systemctl stop mysqld
 
-This uses the mysqld.service file, which is a systemd service unit configuration file
+	This uses the mysqld.service file, which is a systemd service unit configuration file
 
-•
+
+• On Windows
+
+	+ Run the server process directly.
+
+		mysqld.exe
+
+	+ If you have installed MySQL as a Windows service:
+
+		- An automatic service starts when Windows starts
+		- Start and stop services manually from the Services control panel application Launched from the Start Menu or with the services.msccommand
+		- Start and stop services manually from the command line with the net or sc commands:
+
+			net start servicename
+			sc start servicename
+			net stop servicename
+			sc stop servicename
+
+
+• MySQL Notifier : 
+
+	+ Installed by MySQL Installer
+	+ Automatically registers MySQL services on the local machine
+	+ Enables registration of remote MySQL services
+	+ Displays the running status of registered servers
+		- Displayed in the system tray
+		- Optionally, notifies when a registered server changes status or when MySQL Notifier detects a new local MySQL service
+
+	+ Enables starting, restarting, and stopping registered servers
+	+ Launches installed MySQL applications:
+		- MySQL Workbench
+		- MySQL Utilities
+		- MySQL Installer
+
+
+Upgrading MySQL		---------------------------------
+
+	+ The easiest upgrade is between minor versions within the same series.
+		Example: Upgrading from 8.0.xx to 8.0.yy
+
+	+ You can upgrade from MySQL 5.7 to 8.0
+		- Only between General Availability (GA) releases, MySQL 5.7.9, or later
+		- Oracle recommends upgrading to the latest 5.7 GA release before upgrading to MySQL 8.0.
+
+	+ Be aware of differences between the versions so that you can choose the correct upgrade method (in-place or logical) and avoid compatibility problems.
+	+ Even if you are performing an in-place upgrade, you should back up your data beforehand.
+		- This enables you to roll back the upgrade if you encounter problems.
+
+Reading Release Notes :
+
+Before you upgrade, view the changes between your existing version and the target version:
+
+	• For MySQL 8.0, use the following URL:
+		https://dev.mysql.com/doc/refman/8.0/en/upgrading-from-previous-series.html
+
+	• For previous versions, replace 8.0 in the URL. For example, MySQL 5.7:
+		https://dev.mysql.com/doc/refman/5.7/en/upgrading-from-previous-series.html
+
+	• You may want to view the release notes for the changes between the minor versions.
+		https://dev.mysql.com/doc/relnotes/mysql/8.0/en/index.html
+
+	• Look for the following headings, which denote changes that you might need to handle before you upgrade:
+		Known Issue
+		Incompatible Change
+		etc
+
+
+MySQL Shell Upgrade Checker Utility 	---------------------------------
+
+• The util.checkForServerUpgrade() function:
+
+	Is available in MySQL Shell
+	Enables you to verify whether MySQL server instances are ready for upgrade
+	Checks for compatibility errors and issues for upgrade to MySQL 8.0
+	Supports only MySQL Server 5.7 and 8.0 General Availability (GA) releases
+	Checks the configuration file (my.cnf or my. ini) if you provide the file path
+
+• The version of MySQL Shell must be the same or later than the version of MySQL Server to which you are upgrading.
+• The following example checks a MySQL server for upgrade to release 8.0.18:
+	mysqlsh --util checkForServerUpgrade user@localhost:3306 --target-version=8.0.18 --config-path=/etc/mysql/my.cnf
+
+
+Using In-Place Upgrade Method   	---------------------------------
+
+Use the in-place (physical) upgrade method when you upgrade within a series or from one major version to the next.
+
+	- Stop the MySQL server process.
+	- Use file copy to back up the current databases. (Optional, but recommended)
+	- Replace the mysqld binary with the new version.
+	- Start the MySQL server process using the new binary.
+	- Prior to MySQL 8.0.16, you must run mysql upgrade. In MySQL 8.0.16 and higher, the server restart will perform all the upgrade tasks automatically.
+
+This is the recommended method to upgrade from MySQL 5.7 to 8.0.
+
+Using Logical Upgrade Method   	---------------------------------
+
+• Use the logical (backup/restore) upgrade method when you upgrade to one or more later major versions.
+	- Use mysqldump to back up the current databases.
+	- Install and initialize a new MySQL server.
+	- Start the new MySQL server.
+	- Restore the backed-up databases from the dump file.
+		- May result in errors due to incompatibilities introduced by new, changed, deprecated, or removed features and capabilities
+
+• Prior to MySQL 8.0.16, you must run mysql_upgrade. In MySQL 8.0.16 and higher, you must shut down the server and restart it with 
+		the --upgrade=FORCE option to perform the remaining upgrade tasks.
+		
+		
+mysql_upgrade :
+
+	- Checks all tables in your databases for incompatibilities with current versions of the MySQL server
+	- Repairs any problems found in tables with possible incompatibilities
+	- Upgrades system tables to add any new privileges or capabilities that are available in the new version
+	- Marks all checked and repaired tables with the current MySQL version number
+	- Not required for MySQL server 8.0.16 or later. The server will perform all the upgrade processes during startup. 
+	    A new option --upgrade is introduced in 8.0.16 to control the upgrade process.
+
+
+
+Demo 1 : Installing MySQL ---------------------------------
+
+
+1. Extract the MySQL 5.7 binary archive from /stage/MySQL-Server/mysql-advanced- 5.7.*.tar.gz to/opt.
+
+	# cd /opt
+	# tar xf /stage/MySQL-Server/mysql-advanced-5.7*.tar.gz
+
+2. Create a symbolic link from the newly extracted MySQL directory to '/usr/local/mysql'.
+
+	Enter the following command at the Linux terminal prompt:
+
+	# ln -s /opt/mysql* /usr/local/mysql
+
+When you install a new version of MySQL in the practice titled "Upgrading MySQL," you replace this symbolic link with a link to the new 
+version's directory without overwriting the existing version's directory.
+
+3. View the contents of the '/usr/local/mysql/bin' directory.
+
+	# ls /usr/local/mysql/bin
+		
+4. Add/usr/local/mysql/bin to the root user''s executable search path :
+
+	$vi .bashrc
+	
+	....
+	export PATH=$PATH:/usr/local/mysql/bin to the ~/.bashrc file. 
+
+5. Apply your changes to the ~/.bashrc file by executing the Linux source command.
+
+	# source ~/.bashrc
+
+6. Copy the/labs/my.cnf file to/etc/my.cnf.
+
+	# cp  /labs/my.cnf  /etc/my.cnf
+
+	- Some Linux distributions include a /etc/my.cnf. The Oracle Linux version used in classroom environments does not.
+
+7. View the contents of the /etc/my.cnf file.
+
+	Open the /etc/my.cnf file 
+
+		$ vi /etc/my.cnf
+		
+			[mysqld]
+			datadir = /var/lib/mysql
+			socket = /var/lib/mysql/mysql.sock
+			user = mysql
+
+			# Disabling symbolic-links is recommended to prevent assorted security risks
+			symbolic-links-0
+
+			[mysqld_safe]
+			log-error = /var/log/mysqld.log 
+			pid-file=/var/run/mysqld/mysqld.pid
+		
+		EOF
+		
+NB : The options in the /etc/my.cnf file specify the following:
+
+	- The data directory is in /var/lib/mysql.
+	- The socket file is in the data directory.
+	- The process runs as the mysql user.
+	- When you launch MySQL via mysqld_safe, the server logs errors in the /var/log/mysqld. log file, and the PID file is in the /var/run/mysqld directory.
+	- The default base directory (not amended in /etc/my.cnf) is /usr/local/mysql.
+
+8. The mysql user does not as yet exist on the host machine. Create it as a system user by executing the adduser-r command.
+
+	# adduser -r mysql
+
+NB : The -r switch creates a system user that has no password, that does not expire, and that has no home directory. It also creates a group with the same name.
+
+9. Initialize the data directory by executing mysqld-initialize and note the temporary password that appears.
+
+	# mysqld --initialize
+	
+		.....
+		<date-and-time> 0 (Warning) CA certificate ca.pem is self signed.
+		<date-and-time> 1 [Note] A temporary password is generated for root@localhost: 3C_Va/o*88DP
+		
+The '--initialize' command-line option creates a new data directory in /var/lib/mysql owned by the mysql user and group, using the settings in the /etc/my.cnf
+ file. The new data dir contains the initial InnoDB System Tablespace, system databases and SSL encryption keys and certificates. A default root pwd is created
+ very useful for 1st connexion
+
+10. The pid-file option refers to the /var/run/mysqld directory, which does not as yet exis. Create that directory and grant its ownership to the mysql user 
+and group.
+
+	# mkdir /var/run/mysqld
+	# chown mysql:mysql /var/run/mysqld/
+
+11. Launch MySQL by executing the mysqld_safe script.
+
+	# mysqld_safe &
+
+MySQL is now running.
+
+Demo 2 : Connecting to MySQL ---------------------------------
+
+1. The /etc/my.cnf file does not as yet contain an option group that configures the client. Add a [client] option group that contains the same socket value 
+	as the value contained in the [mysqld] option group.
+
+	[client]
+	socket=/var/lib/mysql/mysql.sock
+
+2. Launch the mysql command-line client, logging in as the root user with the temporary password that you noted in the preceding practice.
+
+	# mysql -uroot -p
+
+	Enter password: 3C_Va/o*88DP
+
+	Welcome to the MySQL monitor. Commands end with or \g.
+	Your MySQL connection id is 2
+	Server version: 5.7.28-enterprise-commercial-advanced
+	...
+	mysql> 
+	
+3. Attempt to change the current database to mysql and note the error message that appears.
+
+	mysql> USE mysql
+
+	ERROR 1820 (HY000): You must reset your password using ALTER USER statement before executing this statement.
+	
+4. Change the MySQL root password to oracle.
+
+	mysql> ALTER USER USER () IDENTIFIED BY 'oracle';
+
+	Query OK, 0 rows affected (1.44 sec)
+
+- The USER () function returns the current user''s full account name (in this case, root@localhost) and provides a useful way to identify 
+	the current user without typing out the full account name.
+
+5. Log out of the mysql client.
+
+mysql> EXIT
+
+6. Log in again, this time providing the new password.
+
+	$ mysql -uroot -p
+
+	Enter password: oracle
+
+	Welcome to the MySQL monitor. Commands end with or \g.
+
+	Your MySQL connection id is 3
+
+	mysql>
+
+	- MySQL accepts the new password.
+
+7. Attempt to change the current database to mysql and note any differences in behavior from step 3.
+
+	mysql> USE mysql
+
+	Database changed
+
+	mysql>
+
+	- The command changes the default database successfully. When you change the initial temporary password, it re-enables the account.
+	out of the mysql client.
+
+	mysql> EXIT
+
+Demo 3 : Configuring MySQL service	---------------------------------
+
+1. Stop the MySQL server by executing an appropriate mysqladmin command.
+
+	$ mysqladmin -uroot -p shutdown
+
+	Enter password: oracle
+
+2. Inspect the contents of the/labs/service/mysql-5.7/mysqld.service file. This is the service unit configuration file.
+
+# cat/labs/service-5.7/mysqld.service
+
+	[Unit]
+	Description-MySQL Server
+	Documentation man=mysqld (8)
+	Documentation-http://dev.mysql.com/doc/refman/en/using-systemd.html
+	After=network.target
+	After=syslog.target
+
+	[Install]
+	WantedBy-multi-user.target
+
+	[Service]
+	User=mysql
+	Group=mysql
+
+	Type=forking
+
+	PIDFile=/usr/local/mysql/data/mysqld.pid
+
+	# Disable service start and stop timeout logic of systemd for mysqld service.
+
+	TimeoutSec=0
+
+	#Start main service
+
+	ExecStart=/usr/local/mysql/bin/mysqld --defaults-file=/etc/my.cnf --daemonize --pid-file=/usr/local/mysql/data/mysqld.pid $MYSQLD_OPTS
+
+	#Use this to switch malloc implementation
+	EnvironmentFile=-/etc/sysconfig/mysql
+
+	#Sets open files_limit
+	LimitNOFILE = 5000
+
+	Restart=on-failure
+
+	RestartPreventExitStatus=1
+
+	PrivateTmp=false
+	
+	EOF	
+	
+3. Copy the 'mysqld.service' file to the '/usr/lib/systemd/system' directory.
+
+	$ cp  /labs/service-5.7/mysqld.service /usr/lib/systemd/system
+
+4. Enter a systemctl command that enables the mysqld service to start automatically when the host machine reboots.
+
+	$ systemctl enable mysqld.service
+
+		Created symlink from /etc/systemd/system/multi-user.target.wants/mysqld.service to /usr/lib/systemd/system/mysqld.service.
+
+5. Enter a systemctl command that starts the mysqld service.
+
+	$ systemctl start mysqld	
+	
+	
+	
