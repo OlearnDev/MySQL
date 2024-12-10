@@ -77,71 +77,545 @@ Softs à installer pour labs :
 	mysql-commercial-8.0.18-el7-x86_64.tar.gz
 	mysql-enterprise-server-8.0.18.tar
 	
----- Configure WSL (Windows Subsystem for Linux) to use Linux Virtual Machine on Windows 11
+----------------- Installing MySQL from Downloaded Packages
 
-	Search and Launch "Turn windows features On or Off" on windows start menu
-	Check to enable :
-		"Virtual Machine Platform"
-		"Windows Subsystem for Linux"
-	Click OK to enable Features
-	Click "Restart Now" to apply changes
+Download and install packages using the following commands:
+
+	On RPM-based systems, including Oracle Linux, Red Hat, Fedora, and CentOS:  
+
+		rpm -ivh packagename.rpm
 	
-	Once restarted, open CMD terminal and run "wsl --status" for example to check wsl enabled
-	Exple : 
+	On APT-based systems, including Ubuntu and Debian:
+
+		dpkg -i packagename.deb
 		
-		C:\> ws1 --status
-			Default Distribution: docker-desktop-data
-			Default Version: 2
-			....
+		•
+For Debian installation : 
 
-	To update WSL : 
+	DEB packages are available for APT Linux systems, either individually or bundled.
 	
-		C:\> ws1 --update
+	$sudo dpkg -i mysql-{common,community-client,client, community-server,server} *.deb
+
+
+For automatic installation : 
+
+	On RPM-based systems, including Oracle Linux, Red Hat, Fedora, and CentOS, use yum install.
+
+		yum install mysql-community-server
+		yum install mysql-workbench
+
+	On APT-based systems, including Ubuntu and Debian, use apt-get install:
+
+		apt-get install mysql-community-server
+		apt-get install mysql-workbench
+
+	• Installing the mysql-community-server packages also installs the packages for the components the server requires.
+
+(See file 1.Installing MySQL 5.7  on Debian)
+
+
+
+************  Adding Yum  Repository
+
+• Download the Yum repository RPM file from http://dev.mysql.com/downloads/repo/yum/.
+
+	- Choose the correct RPM for your distribution.
+	- Example: The "Red Hat Enterprise Linux 7 / Oracle Linux 7 (Architecture Independent), RPM Package" is called  mysql80-community-release-el7-3.noarch.rpm
 	
-	NB: If Default Version of wsl is 1, update wsl to version 2 and set default version to 2 using : 
+	- Install the file by using the yum localinstall command, for example:
+
+		$ yum localinstall mysql80-community-release-el7-3.noarch.rpm
+
+	- The preceding command adds the MySQL Yum repository to the host''s Yum configuration.
+
+• Enable or disable specific versions.
+	- MySQL 8.0 is enabled by default. Other versions are disabled.
+
+• Run "yum install <packagename>" to install a package from the new repository.
+
+
+************  Configuring Yum Repository Versions
+
+• Enable or disable specific versions by editing the /etc/yum.repos.d/mysql-community-repo file
+• The latest Generally Available (GA) version is enabled by default.
+
+The following extract shows the MySQL 5.7 repository is disabled:
+
+	# Enable to use MySQL 5.7
+	[mysql57-community]
+	name=MySQL 5.7 Community Server
+	baseurl=http://repo.mysql.com/yum/mysql-5.7-community/el/7/$basearch/
+	enabled=0
+	gpgcheck=1
+	gpgkey=file:///etc/pki/rpm-gpg/RPM-GPG-KEY-mysql
+
+
+To enable the MySQL 5.7 repository, change the value of the enabled setting so that it reads enabled=1.	
+
+When you start the service for the first time using :
+	service mysqld start or 
+	systemctl start mysqld
+	
+
+************  Adding an APT Repository
+
+Download the APT repository DEB file from http://dev.mysql.com/downloads/repo/apt/.
+
+Supported distributions:
+	Debian version 9
+	Ubuntu LTS versions 16.04, and 18.04 and 18.10
+
+Install the file by using the dpkg command:
+
+	$dpkg -i mysql-apt-config 0.8.12-1_all.deb     <---- Opens an interactive window to select version to install
+
+The preceding command adds the MySQL APT repository to the host''s APT configuration.
+
+• Configure the repository versions.
+• Run apt-get update to refresh the repository metadata.
+• Run apt-get install packagename to install a package from the new repository.
+
+*********** Manually Configuring the APT Repositories
+
+Enable or disable specific repositories by editing
+
+/etc/apt/sources.list.d/mysql.list:
+
+• Performing the steps in the preceding slide results in the following configuration:
+
+	### THIS FILE IS AUTOMATICALLY CONFIGURED ###
+
+	#You may comment out entries below, but any other modifications may be lost.
+	# Use command 'dpkg-reconfigure mysql-apt-config' as root for modifications.
+
+	deb http://repo.mysql.com/apt/ubuntu/bionic mysql-apt-config
+	deb http://repo.mysql.com/apt/ubuntu/ bionic mysql-8.0
+	deb http://repo.mysql.com/apt/ubuntu/ bionic mysql-tools
+
+	#deb http://repo.mysql.com/apt/ubuntu/ bionic mysql-tools- preview
+	deb-src http://repo.mysql.com/apt/ubuntu/ bionic mysql-8.0
+
+• Enable or disable a specific product repository by uncommenting or commenting its line,respectively	
+	
+
+*************** Installing MySQL on Windows
+
+• MySQL Installer:
+
+	Is distributed as an .msi executable
+	Guides you through a configuration wizard to create the folders and configuration required to run MySQL
+
+• Noinstall Archive:
+
+	Is distributed as a .zip file
+	Must be unpacked and moved to the desired installation location
+	Must be manually configured to create the folders and configuration required to run MySQL
 		
-		C:\> ws1 --set-default-version 2
+
+Installing MySQL as a Windows Service
+
+	• With MySQL Installer:
+
+		- Use the provided service name or select an alternative.
+
+	• At the command line after installation:
+
+		- Install the service manually:
+			mysqld.exe --install servicename  -- defaults-file="C:\my.ini"
+
+		- Remove an installed service:
+			mysqld.exe --remove servicename
+
+	• View the installed services by using the Services control panel application.
+
+		- Launch from the command line:
+			services.msc
+
+	Set services to start automatically or manually and provide a Windows account withwhich to start the service
+
+
+************   Installing MySQL from Source
+
+Build MySQL from the source code when you need to:
+
+	• Configure compiled-in options
+
+		- Examples:
+			- Disabling unused features on production servers with well-understood use cases to maximize performance
+			- Enabling additional debugging features
+
+	• Run MySQL on a platform for which there are no precompiled binaries
+	• Add your own modifications (or community patches) to MySQL
+
+
+************ Installing MySQL from Binary Archive
+
+If you do not install from a package manager, you must perform some configuration steps manually.
+
+1.Create the mysql user and group.
+
+	# groupadd mysql
+	# useradd -r -g mysql -s /bin/false mysql		<--- Adds a user with no home and no pwd
+
+2.Extract the archive to a suitable directory while logged in as mysql. 
+	- Alternatively, change the ownership of the extracted archive to mysql after extracting it.
+
+	# mkdir /usr/local/mysql-8.0.x/
+	# chown mysql:mysql /usr/local/mysql-8.0.x/
+	# cd /usr/local/mysql-8.0.x/
+	# tar xf ~/mysql-8.0.x-linux-glibc2.12-x86_64.tar.gz
+
+3. Create the initial configuration file.
+
+	- Copy my-default.cnfto/etc/my.cnf.
+	- Edit the datadir setting to point to the data directory.
+	- Edit the basedir setting to point to the installation directory.
+	- Edit any other required settings:
+		+ Log file settings
+		+ TCP port
+
+4. Initialize the data directory and note the generated temporary password:
+
+	# bin/mysqld --initialize --user=mysql
+
+5. Start the MySQL Server.
+
+	# bin/mysqld safe --user=mysql &
+
+6. Connect to the MySQL server using the temporary password.
+
+	# mysql -u root -p
+
+	Enter password: (enter the random password)
+
+	mysql>
+
+7. Change the root user password.
+
+	mysql> ALTER USER USER() IDENTIFIED BY 'new password';
+
+8. Optionally, populate time zone tables.
+
+	Example:
+
+	# mysql_tzinfo to sql /usr/share/zoneinfo | mysql -u root mysql -p
+
+
+***********  Deploying MySQL Server with Docker
+
+You need to install the Docker engine and client on your host machine first.
+
+1. Download a MySQL Server Docker image.
+	- Using the MySQL Community Edition image
+		- Log in to Docker Hub and pull the image using the docker command:
+
+			# docker pull mysql/mysql-server
+
+	- Using the MySQL Enterprise Edition image
+		- Log in to My Oracle Support and download the MySQL Commercial Server Docker Image
+		- Load the image using the docker command:
+
+		# docker load -i mysql-enterprise-server-version.tar
+
+2. List all the downloaded images.
+
+		$ docker images
+			
+			REPOSITORY   TAG       IMAGE ID   CREATED   SIZE
+
+		$vi /etc/resolv.conf 			<---- Added the lines to be able to reach docker repo
 		
-	
-root user : olinex / olinex
-	
-	To install linux distribution :
-	
-	Open Microsoft Store
-	Search for and click on ubuntu distribution to install it
-	
-	To update linux distribution:
-	$sudo apt update
-	
-	To launch a new connexion to linux env from windows :
-	 - Open CMD or powershell
-	 - List distribution installed with wsl version can be used to run using : 
-		$ wsl -l -v
-	 - Launch a distribution using : $ wsl -d Ubuntu  
-		In powershell, you can click and select the distribution in the windows console list
-
-	
-	To launch a new distro :
-	 - Open CMD terminal as administrator
-	 - run :
-		$ wsl --list --online
+			nameserver 8.8.8.8
+			nameserver 8.8.4.4
+			nameserver 127.0.0.53
 		
-			NAME	FRIENDLY NAME
+		$ docker pull mysql:latest
+			
+			latest: Pulling from library/mysql
+			.......
+			Digest: sha256:0255b469f0135a0236d672d60e3154ae2f4538b146744966d96440318cc822c6
+			Status: Downloaded newer image for mysql:latest
+			docker.io/library/mysql:latest
 
-			Ubuntu 			Ubuntu
-			Debian 			Debian GNU/Linux 
-			kali-linux 		Kali Linux Rolling
-			openSUSE-42 	openSUSE Leap 42
-			SLES-12 		SUSE Linux Enterprise Server v12
-			Ubuntu-16.04 	Ubuntu 16.04 LTS
-			Ubuntu 18.04	Ubuntu 18.04 LTS
-			Ubuntu-20.04	Ubuntu 20.04 LTS
+		$ docker images
+		
+		REPOSITORY   TAG       IMAGE ID       CREATED       SIZE
+		mysql        latest    56a8c14e1404   8 weeks ago   603MB
+		
 
-	To install kali-linux distro :
+3. Create a MySQL Server Docker container:
+
+	# docker run --name=mysql1 -d mysql/mysql-server
+
+4. View the MySQL server logs:
+
+	# docker logs mysql1
+
+Retrieve the generated temporary password:
+
+	# docker logs mysqll 2>&1 | grep GENERATED
+
+5. Connect to the MySQL server from within the container:
+
+	# docker exec -it mysql1 mysql -uroot -p	
+		Enter the temporary password
+		Change the root user password:
+
+	mysql> ALTER USER USER() IDENTIFIED BY 'new password';
 	
-	c:\> wsl --install -d kali-linux
 	
---------------------------------------------------------------------------------
+	
+
+Demo :
+
+$ docker run --name=mysql1 -d mysql/mysql-server
+
+	Unable to find image 'mysql/mysql-server:latest' locally
+	latest: Pulling from mysql/mysql-server
+	.....
+	Digest: sha256:d6c8301b7834c5b9c2b733b10b7e630f441af7bc917c74dba379f24eeeb6a313
+	Status: Downloaded newer image for mysql/mysql-server:latest
+	95d6a57d81aaf1e18313301e00030706b763173da10e5e0e238a88ee2aa3985c
+
+$ docker images
+
+	REPOSITORY           TAG       IMAGE ID       CREATED         SIZE
+	mysql                latest    56a8c14e1404   8 weeks ago     603MB
+	mysql/mysql-server   latest    1d9c2219ff69   23 months ago   496MB
+	
+$ docker ps -a
+
+CONTAINER ID   IMAGE                COMMAND                  CREATED          STATUS  							 PORTS                       NAMES
+95d6a57d81aa   mysql/mysql-server   "/entrypoint.sh mysq…"   24 seconds ago   Up 22 seconds (health: starting)   3306/tcp, 33060-33061/tcp   mysql1
+
+$ docker logs mysql1 2>&1 | grep GENERATED
+[Entrypoint] GENERATED ROOT PASSWORD: 0e.ajBBSK.0/8^p278E=1Rku2p^lo^.Z
+				
+$ docker exec -it mysql1 mysql -uroot -p
+
+Enter password:
+Welcome to the MySQL monitor.  Commands end with ; or \g.
+Your MySQL connection id is 18
+Server version: 8.0.32
+
+Copyright (c) 2000, 2023, Oracle and/or its affiliates.
+
+Oracle is a registered trademark of Oracle Corporation and/or its
+affiliates. Other names may be trademarks of their respective
+owners.
+
+Type 'help;' or '\h' for help. Type '\c' to clear the current input statement.
+
+mysql> ALTER USER USER() IDENTIFIED BY 'root';				<----- root/root for mysql
+Query OK, 0 rows affected (0.04 sec)
+
+mysql> show databases;
++--------------------+
+| Database           |
++--------------------+
+| information_schema |
+| mysql              |
+| performance_schema |
+| sys                |
++--------------------+
+4 rows in set (0.05 sec)
+
+mysql>
+
+
+-- ================   Files and Directories on Linux
+
+Directories may vary depending on the distribution 
+
+	/var/lib/mysql 	: datadir for default data directory
+	/etc			: my.cnf configuration
+	/usr/sbin/		: mysqld Server
+	/usr/bin/		: mysql and other client programs
+	/var/lib/mysql-keyring
+	/var/lib/mysql-files
+	/var/log/mysql	: mysqld.log error log
+	
+	/usr/lib/systemd/system :
+		+ mysqld.service (single instance systemd startup scripts)
+		+ mysqld@.service (multi instances systemd startup scripts)
+		
+C:\Program Files\MySQL\MySQL Server 8.0\   (contains file : my.ini)
+
+	bin\		: mysqld.exe, clients and utility programs
+	include\	: Include (header) files
+	lib\		: Library files
+	share\		: Miscellaneous support files, including error messages, character set files, sample configuration files, SQL for database installation
+	Data\
+			+ mysql and other database directories
+			+ InnoDB log files, undo tablespaces, and system tablespace
+			+ mysql.ibd (data dictionary tablespace)
+
+	Uploads\
+
+
+----- mysqld: MySQL Server Process
+
+• Launched automatically by one of the server helper programs
+	- Including operating system startup scripts
+
+• Launched manually to debug the MySQL server configuration
+	- The error messages go to the terminal by default rather than to the error log.
+	- Example:
+		$ mysqld --user=mysql --datadir=/var/lib/mysql --socket=/tmp/mysql.sock
+
+
+Installation Programs
+
+• mysql_secure_installation:
+
+	- Security program that enables initial secure configuration
+
+• mysql_tzinfo_to_sql:
+
+	- Utility that creates a SQL script containing the host''s time zone information
+
+• mysql_upgrade:
+
+	- Program that verifies database contents and ensures that they are compatible with the current version of MySQL
+	- Deprecated since MySQL Server 8.0.16 where the tasks are performed automatically when the server starts up
+
+---------- Utility Programs
+
+	• mysql_config_editor (auto login): Manages login paths to simplify how you connect command-line clients to the MySQL server
+	• mysqlbinlog (for recovery): Reads and replays the contents of the binary log
+	• mysqldumpslow (slow queries): Reads and summarizes the contents of the slow query log
+	• mysql_ssl_rsa_setup : Creates TLS keys and certificates
+	• ibd2sdi : Extracts serialized dictionary information (SDI) from InnoDB tablespace files  (replaces frm files ??)
+
+
+mysql_config_editor : Useful for different mysql envs you want to login
+
+	Use mysql_config_editor to create encrypted option files.
+
+	• Store user, password, and host options in a dedicated option file:
+
+		-	.mylogin.cnf in the current user''s home directory
+		-	To specify an alternative file name, set the MYSQL_TEST_LOGIN_FILE environment variable.
+
+	• The .mylogin.cnf file contains login paths.
+
+		- They are similar to option groups.
+		- Each login path contains authentication information for a single identity.
+		- Clients refer to a login path with the --login-path (or -L) command-line option:
+
+		# mysql --login-path=admin [or -L=admin]
+
+		- Protect the file from being read by other users. Anyone who can read the file can use the credentials and is able to obtain the plain text passwords.
+
+.mylogin.cnf Format  ----------------------------------------
+
+• The decrypted.mylogin.cnf file consists of option groups.
+
+	- Similar to other option files
+
+• Each option group in .mylogin.cnf is a login path.
+
+	- A set of values indicating the server host and the credentials for authenticating with that server
+	- Permits only a limited set of options (user, password, and host)
+
+• 	Example:
+
+	[admin]
+	user = root
+	password = oracle
+	host = 127.0.0.1
+
+Login Paths ----------------------------------------
+
+	• To create a login path:
+
+		mysql_config_editor set --login-path=login-path --user=username --password 	--host=hostname
+
+	• To view a single login path in clear text:
+
+		mysql_config_editor print 	--login-path=login-path
+
+	• To view all login paths in clear text:
+
+		mysql_config_editor print --all
+
+	• To remove a login path:
+
+		mysql_config_editor  remove --login-path=login-path
+
+	• The default login path name is [client]. It is read by all standard clients.
+
+
+Command-Line Client Programs   ----------------------------------------
+
+	• mysql: MySQL command-line client
+	• mysqladmin: Utility for monitoring, administering, and shutting down MySQL
+	• mysqldump/mysqlpump: Backup utilities that create SQL scripts to restore the structure and contents of databases
+	• mysqlimport: Utility for importing the contents of delimited data files
+	• mysqlslap: Load emulation client
+	• mysqlshow: Utility for displaying database object metadata
+	• mysqlcheck: Utility for checking and optimizing tables
+	• mysqlsh: MySQL Shell is an advanced command-line client and code editor for MySQL Server.
 
 
 
+--=============  STARTING AND STOPPING MYSQL ============================
+
+Methods of starting MySQL:
+
+	+ Run the mysqld binary directly.
+	+ Run "mysqld_safe".
+	+ Use the Linux service manager
+		- Run "service mysqld start" on SysVInit systems.
+		- Run "systemctl start mysqld" on systemd.
+
+Methods of stopping MySQL:
+
+	+ Kill the "mysqld" binary with the "SIGTERM" signal (-15).
+		Kill "mysqld_safe" first if it is running.
+
+	+ Use the Linux service manager
+		- Run "service mysqld stop" on SysVInit systems.
+		- Run "systemctl stop mysqld" on systemd.
+
+	+ mysqladmin shutdown						<----- We can use mysqladmin to shutdown but not to start the service. mysqladmin is used when db is up
+	+ SQL "SHUTDOWN" statement
+
+
+Stopping MySQL with mysqladmin ---------------------------------
+
++ Using the [client] login path:
+
+	$ mysqladmin shutdown
+
++ Using the [admin] login path:
+
+	$ mysqladmin --login-path=admin shutdown
+
++ Providing credentials and server connections at the command line:
+
+	$ mysqladmin -u root -p -h dbhost -P 3306 shutdown     <----- 3306 is mysql default port
+
+	Enter password: password
+	
+	
+MySQL Service Files		---------------------------------
+
+On SysVInit systems, copy the mysql.server script to /etc/init.d/mysqld.
+
+	Some package installers create this file automatically.
+	Call it with start, stop, or restart options.
+	Examples:
+
+		service mysqld start
+		/etc/init.d/mysqld restart
+		support-files/mysql.server stop
+
+When you install MySQL from an RPM package built for systemd distributions or if you have configured systemd manually, use the "systemctl" command:
+
+	systemctl start mysqld
+	systemctl stop mysqld
+
+This uses the mysqld.service file, which is a systemd service unit configuration file
+
+•
