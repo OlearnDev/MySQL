@@ -1358,3 +1358,251 @@ After a connection is established, MySQL processes each query in the SQL layer, 
 	+ Query logging: Logs queries that the server receives or executes
 
 
+Storage Engines Provided with MySQL		----------------------
+
+• InnoDB:
+
+	- This is the default, built-in storage engine.
+	- Use this engine except in specific, rare circumstances.
+
+• Other engines included with MySQL:
+
+	- MyISAM 	 : (often used in legacy systems), used on old systems and fast for pure retrieval
+	- MEMORY	 : stores data in memory for fast access 
+	- ARCHIVE	 : long term storage with compression but not powerful storage
+	- BLACKHOLE  : for relay in replication; only metadata stored for testing for exple
+	- MERGE		 : before partitioning
+	- CSV		 : to create delimited files
+	- FEDERATED  : (disabled by default) . A kind of linked db (it''s a table now)
+	- NDBCLUSTER : available in MySQL Cluster distributions
+
+• 3rd party storage engine  
+
+
+Storage Engines: Function : 
+
+	• Storage engines are server components that act as handlers for different table types.
+	• MySQL delegates the task of handling data rows to these storage engines, which:
+		- Store the data on disk, memory, or other components on the network
+		- Provide indexes and other row optimizations
+	• When you create a table, you specify which of the available storage engines manages its data.
+	• The table''s storage engine does not usually affect the operation of the SQL layer.
+		- In general, the SQL layer parses all valid SQL and the storage layer handles row operations.
+		- Exceptions are covered in the next slide.
+
+NB : SQL Layer doesn''t care about the the Storage Engine
+
+
+Exception : SQL and Storage Layer Interactions
+
+• SQL statements are storage-engine independent, apart from the following:
+	+ CREATE TABLE has an ENGINE option that specifies which storage engine to use on a per-table basis.
+	+ ALTER TABLE has an ENGINE option that enables the conversion of a table to use a different storage engine.
+
+• Some features are available in only some storage engines. For example:
+	+ Only InnoDB and NDB support:
+		- Foreign keys
+		- Transaction control operations, such as COMMIT and ROLLBACK
+		- Table partitioning (starting from MySQL 8.0)
+	+ Only InnoDB and MyISAM support full-text indexes and R-tree spatial indexes.
+	+ Only MEMORY and NDB support hash indexes. [NDB is very heavy on memory]
+	+ Only InnoDB supports Transparent Data Encryption (TDE).
+
+Features Dependent on Storage Engine :
+
+	• Storage medium
+		- Disk
+		- Memory
+		- Networked data nodes
+		- Null (BLACKHOLE)
+
+	• Transactional capabilities
+		- Multistatement transactions with commit and rollback
+		- Isolation levels [using LSN : line sequence Number]
+
+	• Locking
+		- Locking granularity beyond table level
+		- Multiversion Concurrency Control (MVCC)
+
+	• Table Partitioning
+		Becomes engine specific in Mysql
+		
+	• Backup and recovery
+		Complex storage engines, such as InnoDB and NDB, maintain consistency internally to improve performance.
+			- Files do not always contain a consistent snapshot of the running database.
+
+		Filesystem (raw) backups are possible with simpler engines.
+			- Example: MyISAM has a few consistency features, so the files contain a consistent view of the database.
+
+	• Optimization
+		- Some storage engines use indexes, internal caches, buffers, and memory to optimize performance.
+
+	• Referential integrity with foreign keys
+	• Full-text search
+	• Spatial data
+
+
+InnoDB Storage Engine  -----------------------------
+
+InnoDB, the default storage engine for MySQL, provides high reliabilit performance, as well as the following primary advantages:
+
+	• Transaction-safe (ACID compliant)
+	• MVCC (Multiversioning Concurrency Control)
+		- InnoDB row-level locking
+		- Oracle-style consistent non-locking reads
+	• Table data arranged to optimize primary key-based queries
+	• Support for foreign key referential integrity constraints
+	• Maximum performance on large data volumes
+	• Fast auto-recovery after a crash
+	• Buffer pool for caching data and indexes in memory
+	• Support for table partitioning
+	
+MyISAM Storage Engine     -------------------------
+
+	• Is used in many legacy systems
+		- Was the default storage engine before MySQL 5.5
+	• Is fast and simple, but subject to table corruption if server crashes
+		- Use REPAIR TABLE to recover corrupted MyISAM tables.
+	• Supports FULLTEXT indexes
+	• Supports spatial data types and indexes
+	• Supports table-level locking													<---- Can slow things up
+	• Supports raw table-level backup and recovery because of the simple file format
+	• No transactional support														<---- inconsistency
+	• No support for table partitioning in MySQL 8.0 as compared to MySQL 5.7.      <---- We could partition on MySQL 5.7
+
+
+MEMORY Storage Engine      -------------------------
+
+	• Stores row data and indexes in memory
+		- Data does not survive server restarts.
+	• Stores rows with a fixed-length format
+	• Support binary trees and hash indexes
+	• Limits table size with the --max-heap-table-size option
+		- The option is named for the older storage engine name HEAP.
+	• Supports table-level locking
+	• Cannot store TEXT or BLOB columns
+
+
+ARCHIVE Storage Engine     -------------------------
+
+The ARCHIVE storage engine is used for storing large volumes of data in a compressed format, allowing for a very small footprint. It has 
+these primary characteristics:
+
+	• Does not support indexes
+	• Supports INSERT and SELECT, but not DELETE, REPLACE, or UPDATE
+	• Supports ORDER BY operations and BLOB columns
+	• Accepts all data types except spatial data types
+	• Uses row-level locking
+	• Supports AUTO INCREMENT columns
+	• Disabled by default, need to be enabled to use
+
+
+NDBCluster Storage Engine     -------------------------
+
+The NDBCluster storage engine (also known as NDB) enables running several computers with MySQL servers, data nodes, and management servers in a cluster. 
+It offers these primary characteristics:
+
+	• Only available with MySQL Cluster
+	• Supports a "cluster" (group of nodes working together to store/retrieve data)
+	• Runs outside of the MySQL server as one or more processes
+	• MySQL server provides SQL interface to the cluster processes.
+	• Supports transactions and foreign keys
+	• Provides high availability, scalability, and high pelormance
+
+BLACKHOLE Storage Engine      -------------------------
+
+	Acts as a null storage engine
+		- It accepts data but does not store it.
+		- Retrievals always return an empty result.
+	• Supports all kinds of indexes
+	• Is useful in some specific cases:
+		- Replication: Relay slaves that log and forward replicated logs but do not store the data.
+			- Committed transactions are written to the binary log, but rolled-back transactions are not.
+		- Verifying backups and dump file syntax
+		- Finding performance bottlenecks not related to the storage engine
+			- Example: Measuring the overhead from binary logging
+
+
+Storage Engines Feature Summary      -------------------------
+
+	Feature 			InnoDB	MyISAM	Memory	Archive	NDBCluster	
+	B-tree indexes		Yes		Yes		Yes		No		No
+	Backup/point-in-time Yes	Yes		Yes		Yes		Yes
+	recovery [1]
+	Cluster database 	No		No		No		No		Yes	
+	support
+	Clustered indexes	Yes		No		No		No		No
+	Compressed data		Yes		Yes[2]	No		Yes		No
+	Data caches			Yes		No		N/A		No		Yes
+	Transparent Data 	Yes		No		No		No		No
+	Encryption
+	Foreign key 		Yes		No		No		No		Yes [3]
+	support
+	Full-text search 	Yes [4]	Yes		No		No		No
+	indexes
+	Geospatial data type Yes	Yes		No		Yes		Yes
+	support
+	Geospatial indexing  Yes[5] Yes		No		No		No
+	support (R-tree)
+	Table Partitioning [6]Yes	No		No		No		Yes
+	Hash indexes		No [7]		No		Yes		No		Yes
+	Index caches		Yes		Yes		No		No		Yes
+	Locking granularity	Row		Table	Table	Row		Row
+	Multiversion 		Yes		No		No		No		No
+	Concurrency Control (MVCC)
+	Replication 		Yes		Yes		Limited [8]	Yes		Yes
+	support [1]
+	Storage limits		64TB per 256TB per 	RAM		None	384EB
+						tablespace	table
+	T-tree indexes		No		No		No		No		Yes
+	Transactions		Yes		No		No		No		Yes
+	Update statistics 	Yes		Yes		Yes		Yes		Yes
+	for data dictionary
+
+
+
+-------------------------	How MySQL Uses Disk Space	-------------------------
+
+	• Data Directory
+
+		+ Server Log Files 
+		+ mysql.ibd
+		+ Status Files
+		+ SSL Certificates (.pem)
+		+ InnoDB Log Files
+		+ InnoDB System Tablespace
+		+ InnoDB Undo Tablespaces
+
+	• Database Directory (per database)
+		
+		+ Storage Engine Data Files
+			(.ibd, .CSV, .ARZ,	.MYD, .MYI, .MRG)
+
+		+ Serialized Dictionary Information (.sdi)
+			for non-InnoDB tables  [no more frm files]
+
+
+	• Executable Files
+
+		+ Server
+		+ Server helper
+		+ Client
+		+ Utility
+
+	• Log Files
+
+		+ Error
+		+ General
+		+ Binary log
+		+ Slow query
+		+ Audit
+
+	• Configuration/Runtime
+
+		+ .cnf
+		+ Localized error messages
+		+ PID
+		+ Socket
+
+
+
