@@ -1161,4 +1161,200 @@ Demo 5 : Deploying MySQL with Docker	---------------------------------
 	$ docker stop mysqll
 		mysql1
 
-10. Close all open Linux terminal windows.
+
+---========== CHAP.3 : UNDERSTANDING MYSQL ARCHITECTURE ==========================
+
+Architecture   ---------------------------------
+
+	A MySQL installation has the following architectural components:
+
+		The MySQL server process
+		Client programs connecting locally or remotely
+		Other MySQL programs (that are not clients) installed locally
+
+	Client programs connect to the MySQL server process to make data requests.
+
+MySQL Server Process :
+
+	- Is a program called mysqld
+	- Runs as a single process that is multithreaded
+	- Manages access to databases on disk and in memory
+	- Supports simultaneous client connections
+	- Supports multiple storage engines
+	- Supports both transactional and non-transactional tables
+	- Optimizes memory usage by using caches and buffers
+
+Terminology			--------------------------------------------------------
+
+Host: The physical machine or virtual machine on which the server program runs, which includes the following:
+		Its hardware configuration
+		The operating system running on the machine
+		Its network addresses
+
+MySQL server software: A software program (mysqld) with a version number and a list of features
+MySQL server instance: A mysqld server process that manages a data directory containing one or more schemas
+	- Multiple instances can run on a single host.
+
+Connection Protocols --------------------------------------------------------
+
+	Protocols are implemented in the client libraries and drivers.
+	The speed of a connection protocol varies with the local settings.
+	In addition to the legacy MySQL Classic Protocol, the MySQL X Protocol is introduced in MySQL 5.7.12 and enabled by default in MySQL 8.0.
+
+Protocol		Connection		Supports					Operating Systems	
+
+TCP/IP			Local, remote 	Classic and X Protocol		All
+Socket file		Local			Classic and X Protocol		UNIX-derived operating systems including Linux, BSD, Max OS X
+Shared memory	Local			Classic Protocol			Windows
+Named pipes		Local			Classic Protocol			Windows
+
+
+
+Local and Remote Connection Protocol: TCP/IP --------------------------------------------------------
+
+• TCP/IP (Transmission Control Protocol/Internet Protocol):
+
+	- Is the suite of connection protocols used to connect hosts on the Internet		
+		+ Uses IP addresses or DNS host names to identify hosts
+		+ Uses TCP port numbers to identify specific services on each host
+		+ MySQL default TCP port number:
+
+			3306 for MySQL Classic protocol (server port option)
+			33060 for MySQL X Protocol (server mysqlx port option)
+			33062 for administrative connection using MySQL Classic protocol (server admin port option)
+
+    - Enables connections between different hosts
+
+• Example using a host name and the default port (no option specified):
+
+	$ mysql --host=mysqlhost1 --user=root --password
+
+• Example using an IP address and an alternative port (use the -P or --port option):
+
+	$ mysql -h 192.168.1.8 -P 3309 -uroot -p
+
+
+
+Local Connection Protocol in Linux: Socket  --------------------------------------------------------
+
+• A form of inter-process communication
+
+	- Used to form one end of a bidirectional communication link between two processes on the same machine
+
+• Requires that the server creates a socket file on the local system with the 'socket' and 'mysqlx_socket' options for MySQL classic and X Protocol, respectively
+	- The client specifies the socket file with the option --socket or -s when it connects.
+	- This is the best connection type for Linux.
+
+• Example using the /var/lib/mysql/mysql.sock socket file:
+
+	$ mysql -S /var/lib/mysql/mysql.sock -uroot -p
+
+• Example using the default socket file /tmp/mysql.sock:
+
+	$ mysql -uroot -p
+	
+	- If no host is specified, mysql assumes -h localhost.
+
+------- [ Note sur Socket ] ----------------------------
+
+socket est un fichier socket Unix. Sur une plate-forme de type Unix, le client dispose de deux manières de se connecter au serveur MySQL, 
+à savoir la méthode TCP/IP et la méthode du fichier socket. 
+Les connexions de fichiers socket Unix sont plus rapides que TCP/IP, mais ne peuvent être utilisées que pour se connecter à un serveur sur le même ordinateur
+Le chemin et le nom du fichier socket peuvent être configurés en définissant la variable socket. La valeur par défaut est /tmp/mysql.sock
+
+------- [ Fin Note ] ------------------------------------
+
+MySQL and localhost :
+
+• MySQL assumes the TCP protocol when you specify --host=hostname except when the host name is localhost.
+	- If the host name is localhost, MySQL assumes you are connecting using a UNIX socket.
+
+• To connect to the localhost IP address 127.0.0.1 or ::1 (for IPv6):
+	- Specify TCP explicitly:
+
+		$ mysql -h localhost --protocol=tcp -uroot -p
+
+	- Specify the localhost IP address explicitly:
+
+		$ mysql -h 127.0.0.1 -uroot -p
+		$ mysql -h::1 -uroot -p
+
+Local Connection Protocols in Windows: 
+
+• With Shared memory:
+
+The server creates a named shared memory block. Client processes running on the same host uses the shared memory to communicate with the server.
+Shared memory is disabled by default. Example of using the default shared memory base name MYSQL:
+
+	$ mysql --protocol=memory -uroot -p
+
+• With Named pipes:
+
+	In Windows, named pipes work much like UNIX sockets:
+		The server creates the named pipe, and the client writes to it and reads from it.
+
+	Named pipes support read/write operations, along with an explicit passive mode for server applications.
+
+	Example: $ mysql --protocol=PIPE -uroot -p    <-----  A vérifier
+
+
+
+SSL by Default   --------------------------------------------------------
+
+For TCP/IP connections, the connection layer uses secure, encrypted connections when they are available.
+
+	• MySQL package installers create SSL keys if OpenSSL is installed on the server host.
+		- The installer calls the mysql_ssl_rsa_setup utility to create the keys.
+		- If you install from a binary archive, call this utility manually.
+
+	• MySQL clients use SSL if keys are available.
+		- Keys are in the data directory.
+		- Copy client keys to remote clients to enable encrypted remote connections.
+
+	• If SSL is not available, connections are unencrypted.
+		- You can configure the server and clients to use SSL mandatorily.
+
+	• SSL is not supported on socket, named pipe, and shared memory connections but only supported in TCP mode
+
+
+Connection Threads	  --------------------------------------------------------
+
+•	The server creates a connection thread for each active client connection.
+	- All statements executed by that client are executed by a single server thread.
+	- The server destroys the thread when the client disconnects.
+
+•	The Thread Pool plugin manages connections and server threads separately:
+	- Manages client connections with thread groups
+	- Each thread group allows only one short-running statement at any point in time.
+		Reduces the number of server threads
+		A thread group can create additional server threads for long-running statements.
+
+	- Distinguishes between high-priority and low-priority statements based on their transaction membership
+		Statements within a running transaction are high priority.
+		Long-running transactions are improved.
+		
+•	X DevAPI supports connection pooling, where the client can maintain a pool of connexions for reuse
+
+Quiz :
+
+Which of the following parameters to the --protocol option works on all operating systems, both locally and remotely?
+
+	a. PIPE
+	b. MEMORY
+	C. SOCKET
+	d. TCP  *
+
+
+SQL Layer ----------------------
+
+SQL Layer Components
+
+After a connection is established, MySQL processes each query in the SQL layer, which comprises the following components:
+
+	+ Parser: Validates the query''s syntax and semantics and converts it to a standard form
+	+ Authorization: Verifies that the connected user is allowed to run the query and has enough permissions on the objects the query refers to
+	+ Optimizer: Creates an optimal execution plan for each query. This involves deciding which indexes to use and in which order to process the tables
+	+ Query execution: Fulfills the execution plan for each query
+	+ Query logging: Logs queries that the server receives or executes
+
+
