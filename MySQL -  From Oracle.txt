@@ -2000,4 +2000,283 @@ MySQL Component Interface		--------------------------------
 
 ------------------	[ Demo : Configuring tablespaces ] --------------------------------
 
+1. Open two Linux terminal windows. This practice refers to these terminal windows as t1 and t2.
 
+2. In 1, view the contents of the data directory.
+
+	Enter the following command at the t1 Linux terminal :
+
+	$ ls /var/lib/mysql
+
+	auto.cnf  	ibdatal		performance_schema	binlog.000001	ib_logfile0 private_key.pen 	binlog.000002	ib_logfilel	public_key.pen binlog.index
+	ibtmpl	server-cert.pem	ca-key.pem	#innodb_temp	server-key.pen	ca.pem	mysql	sys client-cert.pen	mysql.ibd	undo_001	client-key.pem
+	mysql.sock undo_002	edvmr1p0.pid	mysql.sock.lock	ib buffer pool	mysql upgrade	info
+
+Note the following points:
+
+	There are three database directories: mysql, performance_schema, and sys.
+	The system tablespace is contained within the Ibdatal file.
+	The global temporary tablespace is contained within the ibtmpl file.
+	The session temporary tablespaces are contained in the #innodb_temp directory.
+	The InnoDB redo logs are in the ib_logfile0 and ib_logfilel files.
+	The PID file (shown as edvmr1p0.pid in the preceding output) has a default name that includes your host''s name.
+
+
+3. In t2, launch the mysql client.
+
+	Enter the following command at the t2 Linux terminal prompt :
+	
+	$ mysql -uroot -p
+
+	Enter password: oracle
+
+	mysql>
+	
+4. In t2, create a new database called ts_test.
+
+	mysql> CREATE DATABASE ts_test; 
+
+5. In t2, create a table called tablel in the new database, with a single integer column called a.
+
+		mysql> USE ts_test
+
+		mysql> CREATE TABLE tablel (a INT);
+
+6. In t2, execute a SHOW CREATE TABLE statement to view the full statement that creates the table.
+
+	mysql> SHOW CREATE TABLE tablel\G
+
+			.........
+
+			1. row
+
+			Table: table1
+
+			Create Table: CREATE TABLE `table1 (
+			`a` int (11) DEFAULT NULL
+			) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+			COLLATE utf8mb4_0900_ai_ci
+
+   NB : The table uses the InnoDB storage engine, and there are no TABLESPACE table options.
+
+7. In t1, view the contents of the data directory again.
+
+	$ ls /var/lib/mysql			
+		....
+		ts_test
+
+	- There is a new directory containing the new ts_test database.
+	
+8. In t1, view the contents of the ts_test database directory.
+
+	$ ls /var/lib/mysql/ts_test
+
+		tablel.ibd
+
+	- The database directory contains a tablespace file for the tablel table.
+
+9. In t2, create a tablespace called general with the data file general.ibd.
+
+		mysql> CREATE TABLESPACE general ADD DATAFILE 'general.ibd'; 
+
+10. In t2, create a table in the new tablespace called table2 with a single integer column called b.
+
+		mysql> CREATE TABLE table2 (b int) TABLESPACE=general; 
+
+11. In t2, execute a SHOW CREATE TABLE statement to view the full statement that creates the table2 table.
+
+		mysql> SHOW CREATE TABLE table2\G
+
+			Table: table2
+
+			Create Table: CREATE TABLE `table2 (
+			`b` int (11) DEFAULT NULL
+			) /* 150100 TABLESPACE `general` */ ENGINE=InnoDB
+			DEFAULT CHARSET utf8mb4 COLLATE utf8mb4_0900_ai_ci
+			
+			The table definition contains a TABLESPACE table option that refers to the general tablespace.	
+				
+	
+12. In t1, view the contents of the data directory and the ts_test database directory again.
+
+		$ ls /var/lib/mysql
+			...
+			general.ibd
+
+		#ls /var/lib/mysql/ts_test
+
+			tablel.ibd
+
+	- The data directory contains a new .ibd tablespace file for the general tablespace.
+	- The ts_test database directory contains no tablespace file for the new table.
+
+13. In t1, create a new directory in the root of the filesystem called /tablespaces and grant its ownership to the mysql user and group.
+
+		# mkdir /tablespaces
+		# chown mysql:mysql/tablespaces
+
+14. In t1, add the new/tablespaces directory to the innodb_tablespaces option in the /etc/my.cnf file and restart the MySQL server.
+
+		Edit the /etc/my.cnf file and add the line shown in bold near the top.
+
+		[mysqld]
+		innodb_directories="/tablespaces"
+		datadir=/var/lib/mysql
+		socket=/var/lib/mysql/mysql.sock
+		user=mysql
+		#Disabling symbolic-links is recommended to prevent assorted security risks
+		symbolic-links=0	
+		
+		[mysqld safe]
+		log-error=/var/log/mysqld.log
+		pid-file=/var/run/mysqld/mysqld.pid
+
+		[client]
+		socket=/var/lib/mysql/mysql.sock
+		
+		EOF
+		
+		Enter the following command at the t1 Linux terminal prompt:
+
+		$ systemctl restart mysqld
+	
+15. In t2, create a new general tablespace called external with a data file called external. ibd in the tablespaces directory.
+
+		mysql> CREATE TABLESPACE external ADD DATAFILE '/tablespaces/external.ibd';
+
+			ERROR 2006 (HY000): MySQL server has gone away
+			....
+		
+		- When you restart a running MySQL server, the mysql client loses its connection and must reconnect before executing a statement.
+
+Note: If MySQL does not have permissions to write to the /tablespaces directory, or if it is prevented from doing so by a mandatory access control system 
+such as SELinux, the preceding command fails.
+
+16. In t2, create a table in the new external tablespace called table3 with a single integer column called c.
+
+		mysql> CREATE TABLE table3 (c int)
+
+		TABLESPACE external;
+
+
+17. In t1, view the contents of the data directory and the ts_test database directory again. 
+	
+	#ls/var/lib/mysql
+
+		ts_test
+
+	$ ls /var/lib/mysql/ts_test
+	
+	tablel.ibd
+
+	- There are no visible artefacts that refer to table3 in the data and database directories.
+	
+18. In 11, view the contents of the/tablespaces directory.
+
+		#ls /tablespaces/
+
+		external.ibd
+
+	- There is a data file for the new tablespace.
+
+19. In t2, create a table in its own default tablespace in the tablespaces directory called table4 with a single integer column called d.
+
+		mysql> CREATE TABLE table4 (d INT)
+
+		-> DATA DIRECTORY='/tablespaces';
+
+
+20. In t1, view the contents of the data directory, the ts_test database directory, and the /tablespaces directory again.
+
+	$ls /var/lib/mysql
+
+	  ...	ts_test
+
+	$ls /var/lib/mysql/ts_test	
+
+		tablel.ibd
+
+	$ ls /tablespaces/
+
+		external.ibd ts test
+
+	Note the following points:
+	
+	- There are no changes in the data or database directories.
+	- The /tablespaces directory contains a new ts_test directory.
+
+21. In t1, view the contents of the new /tablespaces/ts_test directory.
+
+	$ls /tablespaces/ts_test/
+
+		table4.ibd
+
+	- The directory contains the file-per-table tablespace for the table 4 table.
+
+22. In t2, create a table called table5 in the system tablespace, with an integer column called e.
+
+	mysql> CREATE TABLE table5 (e int) TABLESPACE=innodb_system;
+
+
+23. In t1, view the contents of the data directory, the ts test database directory, and the /tablespaces/ts test directory again.
+
+	$ls /var/lib/mysql
+
+		ts_test
+
+	$ls /var/lib/mysql/ts_test/	
+
+		table4.ind
+
+	There are no new tablespace files created. The tables table is in the InnoDB system tablespace.
+
+24. In t2, drop the ts_test database.
+
+		mysql> DROP DATABASE ts_test; 
+		
+		Query OK, 5 rows affected (d. sec)
+
+	- DROP DATABASE returns the number of tables that were removed. The output shows 5 tables were removed.
+
+
+25. In t1, view the changes in the filesystem.
+
+	# ls /var/lib/mysql   --> ts_test has gone here
+
+	# ls /tablespaces/
+
+		external.ibd ts_test
+
+	# ls /tablespaces/ts_test/
+
+	- The ts_test database directory in the data directory no longer exists.
+	- The /tablespaces directory contains an empty ts_test directory.
+
+26. In t2, drop the general and external tablespaces.
+
+	mysql> DROP TABLESPACE general;
+
+		Query OK, 0 rows affected (sec)
+
+	mysql> DROP TABLESPACE external;
+
+		Query OK, 0 rows affected (4.44 sec)
+	
+27. In t1, view the changes in the filesystem.
+
+	# ls /var/lib/mysql   	--> general.ibd has gone here
+
+	# ls /tablespaces/
+
+		 ts_test			--> external.ibd has gone here
+
+28. In t1, delete the /tablespaces/ts_test and/tablespaces directories.
+
+	$ rmdir /tablespaces/ts_test/
+	$ rmdir /tablespaces/	
+	
+	
+	
+	
+	
+	
