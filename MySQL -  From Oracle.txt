@@ -559,4 +559,1196 @@ Command-Line Client Programs   ----------------------------------------
 
 
 
+--=============  STARTING AND STOPPING MYSQL ============================
+
+Methods of starting MySQL:
+
+	+ Run the mysqld binary directly.
+	+ Run "mysqld_safe".
+	+ Use the Linux service manager
+		- Run "service mysqld start" on SysVInit systems.
+		- Run "systemctl start mysqld" on systemd.
+
+Methods of stopping MySQL:
+
+	+ Kill the "mysqld" binary with the "SIGTERM" signal (-15).
+		Kill "mysqld_safe" first if it is running.
+
+	+ Use the Linux service manager
+		- Run "service mysqld stop" on SysVInit systems.
+		- Run "systemctl stop mysqld" on systemd.
+
+	+ mysqladmin shutdown						<----- We can use mysqladmin to shutdown but not to start the service. mysqladmin is used when db is up
+	+ SQL "SHUTDOWN" statement
+
+
+Stopping MySQL with mysqladmin ---------------------------------
+
++ Using the [client] login path:
+
+	$ mysqladmin shutdown
+
++ Using the [admin] login path:
+
+	$ mysqladmin --login-path=admin shutdown
+
++ Providing credentials and server connections at the command line:
+
+	$ mysqladmin -u root -p -h dbhost -P 3306 shutdown     <----- 3306 is mysql default port
+
+	Enter password: password
 	
+	
+MySQL Service Files		---------------------------------
+
+• On SysVInit systems, copy the mysql.server script to /etc/init.d/mysqld.
+
+	Some package installers create this file automatically.
+	Call it with start, stop, or restart options.
+	Examples:
+
+		service mysqld start
+		/etc/init.d/mysqld restart
+		support-files/mysql.server stop
+
+• When you install MySQL from an RPM package built for systemd distributions or if you have configured systemd manually, use the "systemctl" command:
+
+	systemctl start mysqld
+	systemctl stop mysqld
+
+	This uses the mysqld.service file, which is a systemd service unit configuration file
+
+
+• On Windows
+
+	+ Run the server process directly.
+
+		mysqld.exe
+
+	+ If you have installed MySQL as a Windows service:
+
+		- An automatic service starts when Windows starts
+		- Start and stop services manually from the Services control panel application Launched from the Start Menu or with the services.msccommand
+		- Start and stop services manually from the command line with the net or sc commands:
+
+			net start servicename
+			sc start servicename
+			net stop servicename
+			sc stop servicename
+
+
+• MySQL Notifier : 
+
+	+ Installed by MySQL Installer
+	+ Automatically registers MySQL services on the local machine
+	+ Enables registration of remote MySQL services
+	+ Displays the running status of registered servers
+		- Displayed in the system tray
+		- Optionally, notifies when a registered server changes status or when MySQL Notifier detects a new local MySQL service
+
+	+ Enables starting, restarting, and stopping registered servers
+	+ Launches installed MySQL applications:
+		- MySQL Workbench
+		- MySQL Utilities
+		- MySQL Installer
+
+
+Upgrading MySQL		---------------------------------
+
+	+ The easiest upgrade is between minor versions within the same series.
+		Example: Upgrading from 8.0.xx to 8.0.yy
+
+	+ You can upgrade from MySQL 5.7 to 8.0
+		- Only between General Availability (GA) releases, MySQL 5.7.9, or later
+		- Oracle recommends upgrading to the latest 5.7 GA release before upgrading to MySQL 8.0.
+
+	+ Be aware of differences between the versions so that you can choose the correct upgrade method (in-place or logical) and avoid compatibility problems.
+	+ Even if you are performing an in-place upgrade, you should back up your data beforehand.
+		- This enables you to roll back the upgrade if you encounter problems.
+
+Reading Release Notes :
+
+Before you upgrade, view the changes between your existing version and the target version:
+
+	• For MySQL 8.0, use the following URL:
+		https://dev.mysql.com/doc/refman/8.0/en/upgrading-from-previous-series.html
+
+	• For previous versions, replace 8.0 in the URL. For example, MySQL 5.7:
+		https://dev.mysql.com/doc/refman/5.7/en/upgrading-from-previous-series.html
+
+	• You may want to view the release notes for the changes between the minor versions.
+		https://dev.mysql.com/doc/relnotes/mysql/8.0/en/index.html
+
+	• Look for the following headings, which denote changes that you might need to handle before you upgrade:
+		Known Issue
+		Incompatible Change
+		etc
+
+
+MySQL Shell Upgrade Checker Utility 	---------------------------------
+
+• The util.checkForServerUpgrade() function:
+
+	Is available in MySQL Shell
+	Enables you to verify whether MySQL server instances are ready for upgrade
+	Checks for compatibility errors and issues for upgrade to MySQL 8.0
+	Supports only MySQL Server 5.7 and 8.0 General Availability (GA) releases
+	Checks the configuration file (my.cnf or my. ini) if you provide the file path
+
+• The version of MySQL Shell must be the same or later than the version of MySQL Server to which you are upgrading.
+• The following example checks a MySQL server for upgrade to release 8.0.18:
+	mysqlsh --util checkForServerUpgrade user@localhost:3306 --target-version=8.0.18 --config-path=/etc/mysql/my.cnf
+
+
+Using In-Place Upgrade Method   	---------------------------------
+
+Use the in-place (physical) upgrade method when you upgrade within a series or from one major version to the next.
+
+	- Stop the MySQL server process.
+	- Use file copy to back up the current databases. (Optional, but recommended)
+	- Replace the mysqld binary with the new version.
+	- Start the MySQL server process using the new binary.
+	- Prior to MySQL 8.0.16, you must run mysql upgrade. In MySQL 8.0.16 and higher, the server restart will perform all the upgrade tasks automatically.
+
+This is the recommended method to upgrade from MySQL 5.7 to 8.0.
+
+Using Logical Upgrade Method   	---------------------------------
+
+• Use the logical (backup/restore) upgrade method when you upgrade to one or more later major versions.
+	- Use mysqldump to back up the current databases.
+	- Install and initialize a new MySQL server.
+	- Start the new MySQL server.
+	- Restore the backed-up databases from the dump file.
+		- May result in errors due to incompatibilities introduced by new, changed, deprecated, or removed features and capabilities
+
+• Prior to MySQL 8.0.16, you must run mysql_upgrade. In MySQL 8.0.16 and higher, you must shut down the server and restart it with 
+		the --upgrade=FORCE option to perform the remaining upgrade tasks.
+		
+		
+mysql_upgrade :
+
+	- Checks all tables in your databases for incompatibilities with current versions of the MySQL server
+	- Repairs any problems found in tables with possible incompatibilities
+	- Upgrades system tables to add any new privileges or capabilities that are available in the new version
+	- Marks all checked and repaired tables with the current MySQL version number
+	- Not required for MySQL server 8.0.16 or later. The server will perform all the upgrade processes during startup. 
+	    A new option --upgrade is introduced in 8.0.16 to control the upgrade process.
+
+
+
+Demo 1 : Installing MySQL ---------------------------------
+
+
+1. Extract the MySQL 5.7 binary archive from /stage/MySQL-Server/mysql-advanced- 5.7.*.tar.gz to/opt.
+
+	# cd /opt
+	# tar xf /stage/MySQL-Server/mysql-advanced-5.7*.tar.gz
+
+2. Create a symbolic link from the newly extracted MySQL directory to '/usr/local/mysql'.
+
+	Enter the following command at the Linux terminal prompt:
+
+	# ln -s /opt/mysql* /usr/local/mysql
+
+When you install a new version of MySQL in the practice titled "Upgrading MySQL," you replace this symbolic link with a link to the new 
+version's directory without overwriting the existing version's directory.
+
+3. View the contents of the '/usr/local/mysql/bin' directory.
+
+	# ls /usr/local/mysql/bin
+		
+4. Add/usr/local/mysql/bin to the root user''s executable search path :
+
+	$vi .bashrc
+	
+	....
+	export PATH=$PATH:/usr/local/mysql/bin to the ~/.bashrc file. 
+
+5. Apply your changes to the ~/.bashrc file by executing the Linux source command.
+
+	# source ~/.bashrc
+
+6. Copy the/labs/my.cnf file to/etc/my.cnf.
+
+	# cp  /labs/my.cnf  /etc/my.cnf
+
+	- Some Linux distributions include a /etc/my.cnf. The Oracle Linux version used in classroom environments does not.
+
+7. View the contents of the /etc/my.cnf file.
+
+	Open the /etc/my.cnf file 
+
+		$ vi /etc/my.cnf
+		
+			[mysqld]
+			datadir = /var/lib/mysql
+			socket = /var/lib/mysql/mysql.sock
+			user = mysql
+
+			# Disabling symbolic-links is recommended to prevent assorted security risks
+			symbolic-links-0
+
+			[mysqld_safe]
+			log-error = /var/log/mysqld.log 
+			pid-file=/var/run/mysqld/mysqld.pid
+		
+		EOF
+		
+NB : The options in the /etc/my.cnf file specify the following:
+
+	- The data directory is in /var/lib/mysql.
+	- The socket file is in the data directory.
+	- The process runs as the mysql user.
+	- When you launch MySQL via mysqld_safe, the server logs errors in the /var/log/mysqld. log file, and the PID file is in the /var/run/mysqld directory.
+	- The default base directory (not amended in /etc/my.cnf) is /usr/local/mysql.
+
+8. The mysql user does not as yet exist on the host machine. Create it as a system user by executing the adduser-r command.
+
+	# adduser -r mysql
+
+NB : The -r switch creates a system user that has no password, that does not expire, and that has no home directory. It also creates a group with the same name.
+
+9. Initialize the data directory by executing mysqld-initialize and note the temporary password that appears.
+
+	# mysqld --initialize
+	
+		.....
+		<date-and-time> 0 (Warning) CA certificate ca.pem is self signed.
+		<date-and-time> 1 [Note] A temporary password is generated for root@localhost: 3C_Va/o*88DP
+		
+The '--initialize' command-line option creates a new data directory in /var/lib/mysql owned by the mysql user and group, using the settings in the /etc/my.cnf
+ file. The new data dir contains the initial InnoDB System Tablespace, system databases and SSL encryption keys and certificates. A default root pwd is created
+ very useful for 1st connexion
+
+10. The pid-file option refers to the /var/run/mysqld directory, which does not as yet exis. Create that directory and grant its ownership to the mysql user 
+and group.
+
+	# mkdir /var/run/mysqld
+	# chown mysql:mysql /var/run/mysqld/
+
+11. Launch MySQL by executing the mysqld_safe script.
+
+	# mysqld_safe &
+
+MySQL is now running.
+
+Demo 2 : Connecting to MySQL ---------------------------------
+
+1. The /etc/my.cnf file does not as yet contain an option group that configures the client. Add a [client] option group that contains the same socket value 
+	as the value contained in the [mysqld] option group.
+
+	[client]
+	socket=/var/lib/mysql/mysql.sock
+
+2. Launch the mysql command-line client, logging in as the root user with the temporary password that you noted in the preceding practice.
+
+	# mysql -uroot -p
+
+	Enter password: 3C_Va/o*88DP
+
+	Welcome to the MySQL monitor. Commands end with or \g.
+	Your MySQL connection id is 2
+	Server version: 5.7.28-enterprise-commercial-advanced
+	...
+	mysql> 
+	
+3. Attempt to change the current database to mysql and note the error message that appears.
+
+	mysql> USE mysql
+
+	ERROR 1820 (HY000): You must reset your password using ALTER USER statement before executing this statement.
+	
+4. Change the MySQL root password to oracle.
+
+	mysql> ALTER USER USER () IDENTIFIED BY 'oracle';
+
+	Query OK, 0 rows affected (1.44 sec)
+
+- The USER () function returns the current user''s full account name (in this case, root@localhost) and provides a useful way to identify 
+	the current user without typing out the full account name.
+
+5. Log out of the mysql client.
+
+mysql> EXIT
+
+6. Log in again, this time providing the new password.
+
+	$ mysql -uroot -p
+
+	Enter password: oracle
+
+	Welcome to the MySQL monitor. Commands end with or \g.
+
+	Your MySQL connection id is 3
+
+	mysql>
+
+	- MySQL accepts the new password.
+
+7. Attempt to change the current database to mysql and note any differences in behavior from step 3.
+
+	mysql> USE mysql
+
+	Database changed
+
+	mysql>
+
+	- The command changes the default database successfully. When you change the initial temporary password, it re-enables the account.
+	out of the mysql client.
+
+	mysql> EXIT
+
+Demo 3 : Configuring MySQL service	---------------------------------
+
+1. Stop the MySQL server by executing an appropriate mysqladmin command.
+
+	$ mysqladmin -uroot -p shutdown
+
+	Enter password: oracle
+
+2. Inspect the contents of the/labs/service/mysql-5.7/mysqld.service file. This is the service unit configuration file.
+
+# cat/labs/service-5.7/mysqld.service
+
+	[Unit]
+	Description-MySQL Server
+	Documentation man=mysqld (8)
+	Documentation-http://dev.mysql.com/doc/refman/en/using-systemd.html
+	After=network.target
+	After=syslog.target
+
+	[Install]
+	WantedBy-multi-user.target
+
+	[Service]
+	User=mysql
+	Group=mysql
+
+	Type=forking
+
+	PIDFile=/usr/local/mysql/data/mysqld.pid
+
+	# Disable service start and stop timeout logic of systemd for mysqld service.
+
+	TimeoutSec=0
+
+	#Start main service
+
+	ExecStart=/usr/local/mysql/bin/mysqld --defaults-file=/etc/my.cnf --daemonize --pid-file=/usr/local/mysql/data/mysqld.pid $MYSQLD_OPTS
+
+	#Use this to switch malloc implementation
+	EnvironmentFile=-/etc/sysconfig/mysql
+
+	#Sets open files_limit
+	LimitNOFILE = 5000
+
+	Restart=on-failure
+
+	RestartPreventExitStatus=1
+
+	PrivateTmp=false
+	
+	EOF	
+	
+3. Copy the 'mysqld.service' file to the '/usr/lib/systemd/system' directory.
+
+	$ cp  /labs/service-5.7/mysqld.service /usr/lib/systemd/system
+
+4. Enter a systemctl command that enables the mysqld service to start automatically when the host machine reboots.
+
+	$ systemctl enable mysqld.service
+
+		Created symlink from /etc/systemd/system/multi-user.target.wants/mysqld.service to /usr/lib/systemd/system/mysqld.service.
+
+5. Enter a systemctl command that starts the mysqld service.
+
+	$ systemctl start mysqld	
+	
+
+Demo 4 : Upgrading MySQL service	---------------------------------
+
+1. Install 'MySQL.Shell' from the RPM file in the /stage/MySQL-Shell directory.
+
+	# cd/stage/MySQL-Shell
+	# rpm -i mysql-shell-commercial-8*.rpm
+
+	warning: mysql-shell-commercial-8.0.18-1.1.el7.x86 64.rpm: Header V3 DSA/SHAL Signature, key ID 5072e1f5: NOKEY
+
+2. Run mysqlsh to perform a check for upgrade using the following command:
+
+	# mysqlsh root@localhost --util checkForServerUpgrade
+
+		Please provide the password for 'root@localhost': oracle
+		Save password for 'root@localhost'? [Y]es/[N]o/Ne [v]er (default No): [press Enter)
+		.....
+
+3. Enter a systemctl command that stops the running mysqld service.
+
+	# systemctl stop mysqld
+
+4. Verify that the mysqld service is not running.
+
+	# systemctl status mysqld
+
+		mysqld.service MySQL Server
+		Loaded: loaded (/usr/lib/systemd/system/mysqld.service; enabled; vendor preset: disabled)
+		Active: inactive (dead) since
+		....
+
+5. Extract the MySQL Server 8.0 commercial edition binary archive from/stage/MySQL-Server to /opt.
+
+	# cd /opt
+	# tar xf /stage/MySQL-Server/mysql-commercial-8*.tar.gz
+
+6. List the contents of the /opt directory to verify that both versions of MySQL server are installed.
+
+	# ls /opt
+
+		mysql-advanced-5.7.28-e17-x86_64
+		mysql-commercial-8.0.18-e17-x86_64
+
+	- The exact version numbers might be different on your machine. However, there should be a 5.7 and 8.0 version, and both must be general availability (GA)
+		releases.
+
+7. Remove the symbolic link to/usr/local/mysql, which you created in the practice titled "Installing MySQL." It links to the directory that contains 
+	the older version of the MySQL server and is no longer required.
+
+	$ rm / usr/local/mysql
+
+		rm: remove symbolic link '/usr/local/mysql'? y
+
+8. Create a symbolic link from the newly extracted MySQL directory to /usr/local/mysql.
+
+	$ ln -s /opt/mysql-commercial-8* /usr/local/mysql
+
+9. Replace the existing mysqld.service file in the /usr/lib/systemd/system directory with the /labs/service-8.0/mysqld.service file.
+
+	# cp /labs/service-8.0/mysqld.service /usr/lib/systemd/system
+
+10. Execute systemctl daemon-reload to make systemd aware of the new service unit configuration file.
+
+	# systemctl daemon-reload
+
+11. Start the mysqld service to launch the new version of the server.
+
+	$ systemctl start mysqld
+
+12. verify that the mysqid service is running.
+
+	$ systemctl status mysqld
+
+13. Run mysql_upgrade to complete the upgrade process and ensure that there are no incompatibilities between the versions. Is this step required? 
+
+	$ mysql_upgrade -uroot -P
+
+		Enter password: oracle
+		
+	- This step is not required because MySQL server 8.0.16 or later will perform all of the upgrade process automatically when you start the server.
+
+If you are upgrading to an older release before 8.0.16. you may see the following result:
+
+	$ mysql_upgrade -uroot -p
+
+		Enter password: oracle
+
+		Checking if update is needed.
+		Checking server version.
+		Running queries to upgrade MySQL server.
+		Upgrading system table data.
+		Checking system database.
+		mysql.columns_priv 	O.K.
+		mysql.component		O.K.
+		mysql.db			O.K.
+		mysql.default_roles	O.K.
+		mysql.engine_cost	O.K.
+		....
+
+14. Use systemctl to view the full logs during the startup of the MySQL server. Can you find the logs related to the upgrade process?
+
+	$ systemctl status mysqld
+	
+15. Verify that the new version of MySQL server is now running on your system.
+
+	$ mysqld --version
+
+		/opt/mysql-commercial-8.0.18-e17-x86_64/bin/mysqld Ver 8.0.18- commercial for el? on x86 64 (MySQL Enterprise Server - Commercial)
+
+
+		
+Demo 5 : Deploying MySQL with Docker	---------------------------------
+
+1. Load the MySQL Enterprise Server Docker image into your Docker Engine and verify the image has been loaded successfully.
+
+	$ cd/stage/MySQL-Server/
+	$ docker load i mysql-enterprise-server-8.0.18.tar
+
+		4fee40bcfecf: Loading layer 124.2MB/124.2MB
+		570b2c36673a: Loading layer 305MB/305MB
+		85211a73c61b: Loading layer 8.704kB/8.704kB
+		1cf11301afd2: Loading layer 2.048kB/2.048kB
+		Loaded image: mysql/enterprise-server: 8.0
+
+	$ docker images
+
+		REPOSITORY				TAG 	IMAGE ID 			CREATED 		SIZE
+		mysql/enterprise-server	8.0		216a5e9c5del		4 weeks ago		421MB
+
+	- The image name is mysql/enterprise-server and the tag is 8.0.
+
+2. Start a MySQL Server Docker container with the name mysql1 using the MySQL server image. Check that the container is running.
+
+	$ docker run --name-mysqll -d mysql/enterprise-server:8.0
+
+		0917d09d8ff01b231407be0b37dab218ab0902047e549f3b429a2c83f7e83ac2
+
+	$ docker ps
+
+		CONTAINER ID 	IMAGE							COMMAND					CREATED 						STATUS 		PORTS 				NAMES
+		0917d09d8fEO 	mysql/enterprise-server: 8.0	"/entrypoint.sh mysq." 	28 seconds ago	Up 28 seconds	(healthy)	3306/tcp, 33060/tcp	mysql1
+
+3. Retrieve the generated root password for the mysqll container.
+
+	$ docker logs mysqll 2>&1 | grep GENERATED
+
+		[Entrypoint] GENERATED ROOT PASSWORD: SOMALASpuG, EbzOh@qIkJ3xEKm3
+
+4. Execute a mysql command-line client from the mysql1 container to connect to the MySQL server running in the container. Enter the generated password 
+	to authenticate the connection.
+
+	# docker exec it mysqll mysql -uroot -p
+
+		Enter password: SOMALASpuG, Ebzoh@qIkJ3zEKm3
+
+	mysql>
+
+5. Change the root user password with an ALTER USER statement and exit the mysql command-line client.
+
+	mysql> ALTER USER USER () IDENTIFIED BY 'MySQL8.0';
+	mysql> EXIT
+
+6. Execute a mysql command-line client from the mysql1 container to connect to the MySQL server running in the container. Enter the new password. 
+	Then exit the mysql command- client.
+
+	# docker exec -it mysqli mysql -uroot -p
+
+	Enter password: MySQL8.0
+
+	mysql> EXIT
+	
+7. Stop the MySQL server by stopping the Docker container and verify the status of the container.
+
+	$ docker stop mysql1
+
+		mysql1
+
+	$ docker ps -a
+
+	CONTAINER ID 	IMAGE 							COMMAND  				 CREATED   	 		STATUS						  	PORTS	 	NAMES
+	0917d09d8ff0	mysql/enterprise-server: 8.0	"/entrypoint.sh mysq..." About 4 minutes ago Exited (0) About a minute ago 			mysql1
+
+8. Start the MySQL Server Docker container and verify the status of the container.
+
+	$ docker start mysql1
+		mysqll
+
+	# docker ps
+
+	CONTAINER ID 	IMAGE 							COMMAND  				CREATED   	 						STATUS	  		PORTS	 		NAMES
+	0917d09d8ff0 	mysql/enterprise-server: 8.0 	"/entrypoint.sh mysq..." About 11 minutes ago Up 34 seconds	(healthy) 3306/tcp, 33060/tcp 	mysql1
+
+9. Stop the MySQL Server Docker container.
+
+	$ docker stop mysqll
+		mysql1
+
+
+---========== CHAP.3 : UNDERSTANDING MYSQL ARCHITECTURE ==========================
+
+Architecture   ---------------------------------
+
+	A MySQL installation has the following architectural components:
+
+		The MySQL server process
+		Client programs connecting locally or remotely
+		Other MySQL programs (that are not clients) installed locally
+
+	Client programs connect to the MySQL server process to make data requests.
+
+MySQL Server Process :
+
+	- Is a program called mysqld
+	- Runs as a single process that is multithreaded
+	- Manages access to databases on disk and in memory
+	- Supports simultaneous client connections
+	- Supports multiple storage engines
+	- Supports both transactional and non-transactional tables
+	- Optimizes memory usage by using caches and buffers
+
+Terminology			--------------------------------------------------------
+
+Host: The physical machine or virtual machine on which the server program runs, which includes the following:
+		Its hardware configuration
+		The operating system running on the machine
+		Its network addresses
+
+MySQL server software: A software program (mysqld) with a version number and a list of features
+MySQL server instance: A mysqld server process that manages a data directory containing one or more schemas
+	- Multiple instances can run on a single host.
+
+Connection Protocols --------------------------------------------------------
+
+	Protocols are implemented in the client libraries and drivers.
+	The speed of a connection protocol varies with the local settings.
+	In addition to the legacy MySQL Classic Protocol, the MySQL X Protocol is introduced in MySQL 5.7.12 and enabled by default in MySQL 8.0.
+
+Protocol		Connection		Supports					Operating Systems	
+
+TCP/IP			Local, remote 	Classic and X Protocol		All
+Socket file		Local			Classic and X Protocol		UNIX-derived operating systems including Linux, BSD, Max OS X
+Shared memory	Local			Classic Protocol			Windows
+Named pipes		Local			Classic Protocol			Windows
+
+
+
+Local and Remote Connection Protocol: TCP/IP --------------------------------------------------------
+
+• TCP/IP (Transmission Control Protocol/Internet Protocol):
+
+	- Is the suite of connection protocols used to connect hosts on the Internet		
+		+ Uses IP addresses or DNS host names to identify hosts
+		+ Uses TCP port numbers to identify specific services on each host
+		+ MySQL default TCP port number:
+
+			3306 for MySQL Classic protocol (server port option)
+			33060 for MySQL X Protocol (server mysqlx port option)
+			33062 for administrative connection using MySQL Classic protocol (server admin port option)
+
+    - Enables connections between different hosts
+
+• Example using a host name and the default port (no option specified):
+
+	$ mysql --host=mysqlhost1 --user=root --password
+
+• Example using an IP address and an alternative port (use the -P or --port option):
+
+	$ mysql -h 192.168.1.8 -P 3309 -uroot -p
+
+
+
+Local Connection Protocol in Linux: Socket  --------------------------------------------------------
+
+• A form of inter-process communication
+
+	- Used to form one end of a bidirectional communication link between two processes on the same machine
+
+• Requires that the server creates a socket file on the local system with the 'socket' and 'mysqlx_socket' options for MySQL classic and X Protocol, respectively
+	- The client specifies the socket file with the option --socket or -s when it connects.
+	- This is the best connection type for Linux.
+
+• Example using the /var/lib/mysql/mysql.sock socket file:
+
+	$ mysql -S /var/lib/mysql/mysql.sock -uroot -p
+
+• Example using the default socket file /tmp/mysql.sock:
+
+	$ mysql -uroot -p
+	
+	- If no host is specified, mysql assumes -h localhost.
+
+------- [ Note sur Socket ] ----------------------------
+
+socket est un fichier socket Unix. Sur une plate-forme de type Unix, le client dispose de deux manières de se connecter au serveur MySQL, 
+à savoir la méthode TCP/IP et la méthode du fichier socket. 
+Les connexions de fichiers socket Unix sont plus rapides que TCP/IP, mais ne peuvent être utilisées que pour se connecter à un serveur sur le même ordinateur
+Le chemin et le nom du fichier socket peuvent être configurés en définissant la variable socket. La valeur par défaut est /tmp/mysql.sock
+
+------- [ Fin Note ] ------------------------------------
+
+MySQL and localhost :
+
+• MySQL assumes the TCP protocol when you specify --host=hostname except when the host name is localhost.
+	- If the host name is localhost, MySQL assumes you are connecting using a UNIX socket.
+
+• To connect to the localhost IP address 127.0.0.1 or ::1 (for IPv6):
+	- Specify TCP explicitly:
+
+		$ mysql -h localhost --protocol=tcp -uroot -p
+
+	- Specify the localhost IP address explicitly:
+
+		$ mysql -h 127.0.0.1 -uroot -p
+		$ mysql -h::1 -uroot -p
+
+Local Connection Protocols in Windows: 
+
+• With Shared memory:
+
+The server creates a named shared memory block. Client processes running on the same host uses the shared memory to communicate with the server.
+Shared memory is disabled by default. Example of using the default shared memory base name MYSQL:
+
+	$ mysql --protocol=memory -uroot -p
+
+• With Named pipes:
+
+	In Windows, named pipes work much like UNIX sockets:
+		The server creates the named pipe, and the client writes to it and reads from it.
+
+	Named pipes support read/write operations, along with an explicit passive mode for server applications.
+
+	Example: $ mysql --protocol=PIPE -uroot -p    <-----  A vérifier
+
+
+
+SSL by Default   --------------------------------------------------------
+
+For TCP/IP connections, the connection layer uses secure, encrypted connections when they are available.
+
+	• MySQL package installers create SSL keys if OpenSSL is installed on the server host.
+		- The installer calls the mysql_ssl_rsa_setup utility to create the keys.
+		- If you install from a binary archive, call this utility manually.
+
+	• MySQL clients use SSL if keys are available.
+		- Keys are in the data directory.
+		- Copy client keys to remote clients to enable encrypted remote connections.
+
+	• If SSL is not available, connections are unencrypted.
+		- You can configure the server and clients to use SSL mandatorily.
+
+	• SSL is not supported on socket, named pipe, and shared memory connections but only supported in TCP mode
+
+
+Connection Threads	  --------------------------------------------------------
+
+•	The server creates a connection thread for each active client connection.
+	- All statements executed by that client are executed by a single server thread.
+	- The server destroys the thread when the client disconnects.
+
+•	The Thread Pool plugin manages connections and server threads separately:
+	- Manages client connections with thread groups
+	- Each thread group allows only one short-running statement at any point in time.
+		Reduces the number of server threads
+		A thread group can create additional server threads for long-running statements.
+
+	- Distinguishes between high-priority and low-priority statements based on their transaction membership
+		Statements within a running transaction are high priority.
+		Long-running transactions are improved.
+		
+•	X DevAPI supports connection pooling, where the client can maintain a pool of connexions for reuse
+
+Quiz :
+
+Which of the following parameters to the --protocol option works on all operating systems, both locally and remotely?
+
+	a. PIPE
+	b. MEMORY
+	C. SOCKET
+	d. TCP  *
+
+
+SQL Layer ----------------------
+
+SQL Layer Components
+
+After a connection is established, MySQL processes each query in the SQL layer, which comprises the following components:
+
+	+ Parser: Validates the query''s syntax and semantics and converts it to a standard form
+	+ Authorization: Verifies that the connected user is allowed to run the query and has enough permissions on the objects the query refers to
+	+ Optimizer: Creates an optimal execution plan for each query. This involves deciding which indexes to use and in which order to process the tables
+	+ Query execution: Fulfills the execution plan for each query
+	+ Query logging: Logs queries that the server receives or executes
+
+
+Storage Engines Provided with MySQL		----------------------
+
+• InnoDB:
+
+	- This is the default, built-in storage engine.
+	- Use this engine except in specific, rare circumstances.
+
+• Other engines included with MySQL:
+
+	- MyISAM 	 : (often used in legacy systems), used on old systems and fast for pure retrieval
+	- MEMORY	 : stores data in memory for fast access 
+	- ARCHIVE	 : long term storage with compression but not powerful storage
+	- BLACKHOLE  : for relay in replication; only metadata stored for testing for exple
+	- MERGE		 : before partitioning
+	- CSV		 : to create delimited files
+	- FEDERATED  : (disabled by default) . A kind of linked db (it''s a table now)
+	- NDBCLUSTER : available in MySQL Cluster distributions
+
+• 3rd party storage engine  
+
+
+Storage Engines: Function : 
+
+	• Storage engines are server components that act as handlers for different table types.
+	• MySQL delegates the task of handling data rows to these storage engines, which:
+		- Store the data on disk, memory, or other components on the network
+		- Provide indexes and other row optimizations
+	• When you create a table, you specify which of the available storage engines manages its data.
+	• The table''s storage engine does not usually affect the operation of the SQL layer.
+		- In general, the SQL layer parses all valid SQL and the storage layer handles row operations.
+		- Exceptions are covered in the next slide.
+
+NB : SQL Layer doesn''t care about the the Storage Engine
+
+
+Exception : SQL and Storage Layer Interactions
+
+• SQL statements are storage-engine independent, apart from the following:
+	+ CREATE TABLE has an ENGINE option that specifies which storage engine to use on a per-table basis.
+	+ ALTER TABLE has an ENGINE option that enables the conversion of a table to use a different storage engine.
+
+• Some features are available in only some storage engines. For example:
+	+ Only InnoDB and NDB support:
+		- Foreign keys
+		- Transaction control operations, such as COMMIT and ROLLBACK
+		- Table partitioning (starting from MySQL 8.0)
+	+ Only InnoDB and MyISAM support full-text indexes and R-tree spatial indexes.
+	+ Only MEMORY and NDB support hash indexes. [NDB is very heavy on memory]
+	+ Only InnoDB supports Transparent Data Encryption (TDE).
+
+Features Dependent on Storage Engine :
+
+	• Storage medium
+		- Disk
+		- Memory
+		- Networked data nodes
+		- Null (BLACKHOLE)
+
+	• Transactional capabilities
+		- Multistatement transactions with commit and rollback
+		- Isolation levels [using LSN : line sequence Number]
+
+	• Locking
+		- Locking granularity beyond table level
+		- Multiversion Concurrency Control (MVCC)
+
+	• Table Partitioning
+		Becomes engine specific in Mysql
+		
+	• Backup and recovery
+		Complex storage engines, such as InnoDB and NDB, maintain consistency internally to improve performance.
+			- Files do not always contain a consistent snapshot of the running database.
+
+		Filesystem (raw) backups are possible with simpler engines.
+			- Example: MyISAM has a few consistency features, so the files contain a consistent view of the database.
+
+	• Optimization
+		- Some storage engines use indexes, internal caches, buffers, and memory to optimize performance.
+
+	• Referential integrity with foreign keys
+	• Full-text search
+	• Spatial data
+
+
+InnoDB Storage Engine  -----------------------------
+
+InnoDB, the default storage engine for MySQL, provides high reliabilit performance, as well as the following primary advantages:
+
+	• Transaction-safe (ACID compliant)
+	• MVCC (Multiversioning Concurrency Control)
+		- InnoDB row-level locking
+		- Oracle-style consistent non-locking reads
+	• Table data arranged to optimize primary key-based queries
+	• Support for foreign key referential integrity constraints
+	• Maximum performance on large data volumes
+	• Fast auto-recovery after a crash
+	• Buffer pool for caching data and indexes in memory
+	• Support for table partitioning
+	
+MyISAM Storage Engine     ------------------------- [not crash-safe]
+
+	• Is used in many legacy systems
+		- Was the default storage engine before MySQL 5.5
+	• Is fast and simple, but subject to table corruption if server crashes
+		- Use REPAIR TABLE to recover corrupted MyISAM tables.
+	• Supports FULLTEXT indexes
+	• Supports spatial data types and indexes
+	• Supports table-level locking													<---- Can slow things up
+	• Supports raw table-level backup and recovery because of the simple file format
+	• No transactional support														<---- inconsistency
+	• No support for table partitioning in MySQL 8.0 as compared to MySQL 5.7.      <---- We could partition on MySQL 5.7
+
+
+MEMORY Storage Engine      -------------------------
+
+	• Stores row data and indexes in memory
+		- Data does not survive server restarts.
+	• Stores rows with a fixed-length format
+	• Support binary trees and hash indexes
+	• Limits table size with the --max-heap-table-size option
+		- The option is named for the older storage engine name HEAP.
+	• Supports table-level locking
+	• Cannot store TEXT or BLOB columns
+
+
+ARCHIVE Storage Engine     -------------------------
+
+The ARCHIVE storage engine is used for storing large volumes of data in a compressed format, allowing for a very small footprint. It has 
+these primary characteristics:
+
+	• Does not support indexes
+	• Supports INSERT and SELECT, but not DELETE, REPLACE, or UPDATE
+	• Supports ORDER BY operations and BLOB columns
+	• Accepts all data types except spatial data types
+	• Uses row-level locking
+	• Supports AUTO INCREMENT columns
+	• Disabled by default, need to be enabled to use
+
+
+NDBCluster Storage Engine     -------------------------
+
+The NDBCluster storage engine (also known as NDB) enables running several computers with MySQL servers, data nodes, and management servers in a cluster. 
+It offers these primary characteristics:
+
+	• Only available with MySQL Cluster
+	• Supports a "cluster" (group of nodes working together to store/retrieve data)
+	• Runs outside of the MySQL server as one or more processes
+	• MySQL server provides SQL interface to the cluster processes.
+	• Supports transactions and foreign keys
+	• Provides high availability, scalability, and high pelormance
+
+BLACKHOLE Storage Engine      -------------------------
+
+	Acts as a null storage engine
+		- It accepts data but does not store it.
+		- Retrievals always return an empty result.
+	• Supports all kinds of indexes
+	• Is useful in some specific cases:
+		- Replication: Relay slaves that log and forward replicated logs but do not store the data.
+			- Committed transactions are written to the binary log, but rolled-back transactions are not.
+		- Verifying backups and dump file syntax
+		- Finding performance bottlenecks not related to the storage engine
+			- Example: Measuring the overhead from binary logging
+
+
+Storage Engines Feature Summary      -------------------------
+
+	Feature 			InnoDB	MyISAM	Memory	Archive	NDBCluster	
+	B-tree indexes		Yes		Yes		Yes		No		No
+	Backup/point-in-time Yes	Yes		Yes		Yes		Yes
+	recovery [1]
+	Cluster database 	No		No		No		No		Yes	
+	support
+	Clustered indexes	Yes		No		No		No		No
+	Compressed data		Yes		Yes[2]	No		Yes		No
+	Data caches			Yes		No		N/A		No		Yes
+	Transparent Data 	Yes		No		No		No		No
+	Encryption
+	Foreign key 		Yes		No		No		No		Yes [3]
+	support
+	Full-text search 	Yes [4]	Yes		No		No		No
+	indexes
+	Geospatial data type Yes	Yes		No		Yes		Yes
+	support
+	Geospatial indexing  Yes[5] Yes		No		No		No
+	support (R-tree)
+	Table Partitioning [6]Yes	No		No		No		Yes
+	Hash indexes		No [7]		No		Yes		No		Yes
+	Index caches		Yes		Yes		No		No		Yes
+	Locking granularity	Row		Table	Table	Row		Row
+	Multiversion 		Yes		No		No		No		No
+	Concurrency Control (MVCC)
+	Replication 		Yes		Yes		Limited [8]	Yes		Yes
+	support [1]
+	Storage limits		64TB per 256TB per 	RAM		None	384EB
+						tablespace	table
+	T-tree indexes		No		No		No		No		Yes
+	Transactions		Yes		No		No		No		Yes
+	Update statistics 	Yes		Yes		Yes		Yes		Yes
+	for data dictionary
+
+
+
+-------------------------	How MySQL Uses Disk Space	-------------------------
+
+	• Data Directory
+
+		+ Server Log Files 
+		+ mysql.ibd
+		+ Status Files
+		+ SSL Certificates (.pem)
+		+ InnoDB Log Files
+		+ InnoDB System Tablespace
+		+ InnoDB Undo Tablespaces
+
+	• Database Directory (per database)
+		
+		+ Storage Engine Data Files
+			(.ibd, .CSV, .ARZ,	.MYD, .MYI, .MRG)
+
+		+ Serialized Dictionary Information (.sdi)
+			for non-InnoDB tables  [no more frm files]
+
+
+	• Executable Files
+
+		+ Server
+		+ Server helper
+		+ Client
+		+ Utility
+
+	• Log Files
+
+		+ Error
+		+ General
+		+ Binary log
+		+ Slow query
+		+ Audit
+
+	• Configuration/Runtime
+
+		+ .cnf
+		+ Localized error messages
+		+ PID
+		+ Socket
+		
+
+-------------------------	How MySQL stores Metadata	-------------------------
+
+What Is a Data Dictionary?
+
+	• Metadata is information about the data stored in an RDBMS, such as:
+
+		- Table and column definitions
+		- Index and constraint definitions
+		- User and privileges information
+
+
+	• The data dictionary is a centralized repository of metadata for all the data in an RDBMS.
+
+Types od metadata :
+
+	Table Definitions
+	SP Definitions
+	ACL
+	View Definitions
+	Schemas
+
+
+Data Dictionary in Earlier Versions of MySQL  	-------------------------
+
+	Data Dictionary location :
+
+		Filesystem : .frm  .trg  .opt
+		In MyISAM  : some data dict in 'mysql' schema system tables (user, events, proc )
+		InnoDB : in InnoDB System Tables
+
+Transactional Data Dictionary: Features    	-------------------------
+
+	• Single metadata repository for all MySQL server subsystems
+		- All storage engines have their own user tables, but all their metadata are stored in the same data dictionary tables.
+		- The tables reside in the InnoDB Data Dictionary tablespace.
+
+	Based on standard SQL definitions
+		- Easier to extend: Common Data Dictionary API
+		- Automatic upgrades by using the installer
+
+	• Uses the transactional storage engine, InnoDB
+		- Atomic DDL
+		- Crash-safe
+
+	• Improves INFORMATION SCHEMA
+		- Better performance using standard optimization techniques
+		- Easier to maintain
+
+
+Serialization of the Data Dictionary    	-------------------------
+
+	Every time there is a change to the metadata, MySQL creates a copy of it:
+		• The metadata is serialized in JSON format.
+		• Known as SDI (Serialized Dictionary Information)
+
+	MySQL stores the copy:
+
+		• InnoDB: In the InnoDB user tablespaces, along with the data
+		• MyISAM: As an . sdi file in the database directory
+
+
+Dictionary Object Cache :
+
+	• Is a shared global cache that stores previously accessed data dictionary objects in memory to enable object reuse and minimize disk I/O
+	• Uses an LRU-based eviction strategy to evict least recently used objects from memory
+	• Comprises cache partitions that store different object types
+
+InnoDB Tablespaces :
+
+	InnoDB tablespaces are data files that can store one or more InnoDB tables and associated indexes. 
+	InnoDB uses the following types of tablespaces:
+
+		• Data tablespaces
+			System tablespace
+			File-per-table tablespaces
+			General tablespaces [to group tablespaces together]
+		• Undo tablespaces
+		• Temporary table tablespaces
+
+
+InnoDB System Tablespace
+
+	• InnoDB stores the change buffer and doublewrite buffer in the system tablespace. It may also contain table and index data.
+	• The 'innodb_data_file_path' option configures the size and physical location of the InnoDB system tablespace files on disk.
+
+		- Default value: ibdatal:12M:autoextend
+			- One file called ibdata1, 12 MB in size, autoextending
+		- Example value: ibdata1:20M;/ext/ibdata2:10M:autoextend
+			- Two files:
+				ibdatal in the data directory, fixed at 20 MB in size 
+				ibdata2 in the /ext directory, 10 MB in size, auto-extending
+		- If you have a set of files in the system tablespace, only the last file in the set can be auto-extending. The file can grow but 
+		does not shrink.
+
+	• The 'innodb_file_per_table' option specifies whether MySQL stores new table data and indexes in the system tablespace or in a separate ibd file.
+
+
+File-per-Table Tablespaces : 
+
+	• Are enabled by default
+	• Contain data and indexes from a single table, including its metadata
+		. ibd files named for the table in the database directory
+
+	• Example:
+		
+		CREATE TABLE fpt table (a INT PRIMARY KEY, b CHAR(4))
+
+		--> Creates the fpt_table.ibd file in the current database''s directory
+
+		Example using an explicit TABLESPACE clause:
+
+			CREATE TABLE fpt table (a INT PRIMARY KEY, b CHAR(4)) TABLESPACE=innodb_file_per_table;
+
+		--> Creates a file-per-table tablespace even if innodb_file_per_table is OFF
+
+
+General Tablespaces : 
+
+	• Contain data and indexes from multiple tables
+		. ibd files named when you create the tablespace
+		Do not belong to any particular database.
+
+	• Example:
+
+		CREATE TABLESPACE myts ADD DATAFILE 'myts datal.ibd';
+
+			--> Creates the myts datal. ibd file in the data directory
+
+	• Place new tables in a general tablespace by specifying a TABLESPACE clause:
+
+		CREATE TABLE gen_table(a INT PRIMARY KEY, b CHAR(4)) TABLESPACE=myts;
+
+	• Move a table to a general tablespace with ALTER TABLE:
+
+		ALTER TABLE fpt table TABLESPACE=myts;
+
+NB : You can create only 1 datafile per tablespace 
+
+
+
+
+
+
+
+
+
+
