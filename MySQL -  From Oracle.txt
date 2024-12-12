@@ -1998,7 +1998,7 @@ MySQL Component Interface		--------------------------------
 
 
 
-------------------	[ Demo : Configuring tablespaces ] --------------------------------
+------------------	[ Demo 3-1: Configuring tablespaces ] --------------------------------
 
 1. Open two Linux terminal windows. This practice refers to these terminal windows as t1 and t2.
 
@@ -2275,8 +2275,73 @@ such as SELinux, the preceding command fails.
 	$ rmdir /tablespaces/ts_test/
 	$ rmdir /tablespaces/	
 	
+
+------------------	[ Demo 3-2: Configuring the Buffer Pool ] --------------------------------
+
+1. In t1, run the free command to see how much free memory is available on your system.
+
+	$ free
+
+	- Linux uses available memory to improve the performance of I/O operations with write buffers and read caches.
+	- In the preceding output, the machine has 16 GB of RAM of which approximately 7.5 GB memory is being used and 8.5 GB is free. 
+	  Your machine will show different numbers.
+
+2. In t2, run a SHOW VARIABLES LIKE command to view the current size of the InnoDB buffer pool in bytes.
+
+		mysql> SHOW VARIABLES LIKE 'innodb_buffer_pool_size';
+
+	The default size of the InnoDB buffer pool is 128 MB.
 	
+3. In t2, change the size of the InnoDB buffer pool to a value that is approximately 75% of your system''s RAM, in bytes.
+
+	mysql> SET GLOBAL innodb_buffer_pool_size=12000 * 1024 1024;	
 	
-	
-	
-	
+	- 75% of the RAM shown in step 1 (16 GB) is approximately 12 GB (12,000 MB.)
+
+	Note: If the new buffer pool size is not a multiple of 128 MB (the value of innodb_buffer_pool_chunk_size), the operation rounds up to the next multiple 
+	of 128 MB and produces a warning.
+
+4. In t2, view the changed size of the InnoDB buffer pool.
+
+	mysql> SHOW VARIABLES LIKE 'innodb_buffer_pool_size';
+
+5. In t2, view the number of buffer pool instances.
+
+	mysql> SHOW VARIABLES LIKE 'innodb_buffer_pool_instances';
+
+	The innodb buffer_pool_instances variable is not a dynamic variable, so you cannot change it on a running system.
+
+6. In t1 edit the [mysqld] option group in the/etc/my.cnf file and set the following option values:
+
+	- Set the buffer pool size to a round number of GB that is less than or equal to 75% of your system''s RAM (example: 12 GB).
+	- Set the number of buffer pool instances so that you have one instance per GB in your buffer pool (example: 12).
+	- 
+	Save and close the file before performing the following step.
+	Edit the/etc/my.cnf file and add the following highlighted lines near the top of the file.
+
+		[mysqld]
+		innodb_buffer_pool_size=12G
+		innodb_buffer_pool_instances=12
+		datadir /var/lib/mysql
+		socket=/var/lib/mysql/mysql.sock
+		...	
+		
+7. In t1, restart the MySQL service.
+
+	$ systemctl restart mysqld
+
+8. In t2, view the InnoDB buffer size and the number of buffer pool instances again.
+
+	mysql> SHOW VARIABLES LIKE ''innodb_buffer_pool_size
+
+	ERROR 2006 (HY000): MySQL server has gone away
+
+	mysql> SHOW VARIABLES LIKE 'innodb_buffer_pool_instances';
+
+	The InnoDB buffer pool options that you placed in the configuration file have been applied.
+
+9. Exit all mysql client sessions and close all Linux terminal windows.
+
+	mysql> EXIT
+
+
