@@ -1741,14 +1741,263 @@ General Tablespaces :
 
 		ALTER TABLE fpt table TABLESPACE=myts;
 
-NB : You can create only 1 datafile per tablespace 
+	NB : You can create only 1 datafile per tablespace 
+
+
+Choosing Between File-Per-Table and General Tablespaces  -----------------------
+
+	• Per-table tablespaces provide the following benefits:
+
+		Table compression: You cannot mix compressed and uncompressed tables within the same general or system tablespace.
+		Space reclamation (with TRUNCATE): InnoDB drops and re-creates truncated file-per- table tablespaces, releasing free space back to the filesystem.
+
+	• General tablespaces provide the following benefits:
+		Less filesystem overhead for statements that remove large amounts of data
+			- Such as DROP TABLE or TRUNCATE TABLE
+		Consume less memory to store tablespace metadata
+
+	• You can mix tablespace types within a database
+		- Some tables using file-per-table
+		- Some tables using general tablespaces
+		- Multiple general tablespaces
+
+
+Locating Tablespaces Outside the Data Directory   -----------------------
+
+• Place tablespaces outside the data directory to:
+	- Physically separate datasets from other data
+	- Place some data on faster devices than general data
+
+• Use the DATA DIRECTORY clause when you create a table:
+
+	CREATE TABLE ext table (a INT PRIMARY KEY, b CHAR(4)) DATA DIRECTORY='/datadir2';
+
+• Use a relative or absolute path when you specify the data file for a general tablespace
+	- Relative paths use the data directory as their root.
+	- Absolute paths can refer to any valid filesystem target.
+
+		CREATE TABLESPACE ext ts ADD DATAFILE '/datadir2/ext ts datal.ibd';					<---- Must end with .ibd extension
+
+• The directory must be specified in the read only variable innodb directories.
+	The directories specified in innodb_directories are also used for tablespace discover during crash recovery
+
+
+Temporary Tablespaces	   -----------------------
+
+	InnoDB has two types of temporary tablespaces:
+
+	• Session Temporary Tablespaces: Store user-created temporary tables and internal temporary tables created by the optimizer:
+		- Allocated to a session from a pool of temporary tablespaces on the first request to create an on-disk temporary table
+		- A pool of ten temporary tablespaces is created when the server is started. The size of the pool never shrinks, and tablespaces are added 
+			to the pool automatically as necessary.
+
+	• Global Temporary Tablespace: Stores rollback segments (undo logs) for changes made to user-created temporary tables:
+		- The relative path, name, size, and attributes for temporary tablespace files depend on the value of innodb_temp_data_file_path.
+		- If no value set, all temporary files are created in a 12 MB auto-extending data file called ibtmp1 in the 'innodb_data_home_dir' directory.
+
+
+--------------    Redo Logs 	   -----------------------
+
+	• Store InnoDB change operations before they are made to the data files
+		- Enables InnoDB to optimize data writes so that they do not need to occur synchronously
+		
+	• Are used during crash recovery
+		- InnoDB replays operations in the redo log files to ensure transactional consistency across all tables, even for operations 
+			that did not write to the data files before the crash.
+			
+	• The number of files and file size are controlled by the innodb_log_files_in_group and innodb_log_file_size options, respectively.
+
+	• Are located in the data directory by default
+		- Typically, the files are named ib logfile0 and ib logfilel
+		
+	• Are located in the data directory by default
+		- Typically, the files are named ib_logfile and ib_logfilel
+			- If the files have wrong size or corrupted, InnoDB fails to start.
+			- If the files do not exist, they are created during the server startup.
+		- Controlled by the innodb_log_group_home_dir option
+
+
+--------------    Undo Logs 	   -----------------------
+
+• Store copies of unmodified data that becomes modified by transactions so that InnoDB can access an earlier version of the data
+• Are also called rollback segments				<--- Now they are outside common data file par default
+• Are stored by default in the undo tablespace
+
+• Are used for MVCC and rollback
+	- InnoDB retrieves the unmodified data from the undo log:
+		- If you roll back a transaction						<--- can't rollback committed transactions
+		- If another transaction needs to see earlier data as part of a consistent read
+		
+• Internally split into:
+	- Insert undo buffer
+	- Update undo buffer
+
+--------------    Undo Tablespaces	   -----------------------
+
+• By default, undo logs reside in two undo tablespaces.
+	- Having two undo tablespaces reduces the maximum size of each.
+	- They reside in the MySQL data directory by default.
+		- Change their location by setting the innodb undo directory option.
+
+• Undo logs have different I/O patterns than standard data.
+	- These patterns make them well suited to storing on SSD.
+
+• Set the innodb_rollback_segments option to change the number of rollback segments allocated to each undo tablespace.
+	- The default value of 128 is the maximum number allowed.
+	
+
+Temporary Table Undo Log	   -----------------------
+
+• The undo logs for temporary tables are handled differently from other tables.
+
+• Temporary tables do not require redo logs.
+	- After a crash, InnoDB does not need to rebuild any temporary tables.
+
+• The undo logs for temporary tables are stored in the rollback segments of the global temporary tablespace file (ibtmp1).
+
+
+-----------------------		Quiz	-----------------------
+
+Which of the following cannot be a target for storing a table when you execute a CREATE TABLE TABLESPACE statement? ...
+
+	a. File-per-table tablespace
+	b. General tablespace
+	c. System tablespace
+	d. Undo tablespace	*
 
 
 
 
+-----------------------		How MySQL Uses Memory	-----------------------
+
+• The MySQL server allocates memory in three different categories:
+
+	Server/Shared
+		• Thread cache
+		• Host cache
+		• Temporary table
+
+	Storage Engine/ Shared
+		• Buffer pool
+		• Log buffer
+
+	Connection/ Session
+		• Sort buffer
+		• Join buffer
+
+• Global
+
+	- Allocated when the server starts
+	- Shared by the server process and its threads
+	- Allocated by and for different components:
+		- MySQL maintains its own instance memory.
+		- InnoDB and NDB maintain internal memory stores.
+
+• Session
+
+	- Allocated for each thread
+	- Dynamically allocated and deallocated
+	- Used for handling query results
+	- Buffer sizes are usually per session
+		- For example: sort_buffer_size, read_buffer_size, and binlog_cache_size
+
+	- TempTable has a shared global limit for all sessions (temptable max ram).
+	
+
+Global Memory : 
+
+	• Allocated per MySQL server instance
+	• Allocated once when the server starts and freed when the server shuts down
+		- This memory is shared across all sessions.
+	• When all the physical memory has been used up, the operating system starts swapping.
+		- This has an adverse effect on MySQL server performance and can cause the server to crash.
+	• Specific buffers and caches include:
+		- Grant table buffers for authorization
+		- Storage engine buffers such as InnoDB's log buffer (innodb_log_buffer_size) and MyISAM's key cache (key_buffer_size)
+		- Table open caches that hold descriptors for open tables (table_open_cache)
 
 
 
+Session Memory
 
+	• Dynamically allocated per session
+		- Per client connection or thread
+
+	• Freed when the session ends or is no longer needed
+	• Mostly used for handling query results
+		- Some memory is dedicated to managing the connection buffer and thread stack.
+		- Internal temporary tables use the TempTable (default) or MEMORY engine.
+		- Most connection memory is used by its result buffer while executing statements.
+
+	• The sizes of the buffers used are per connection.
+		- Example: A sort_buffer_size of 1 MB with 100 connections means that there could be a total of 100 MB used for all sort buffers 
+		simultaneously.
+		- Some buffers can be allocated multiple instances per connection, for example, the join buffer and temporary table.
+
+
+-----------------------		Log Files and Buffers	-----------------------
+
+
+Memory													Disk
+
+Log  -->	Buffer	Writes to disk FLUSH on COMMIT -->  - Transaction records
+														- Redo log records
+														---------------------
+														  Redo log
+
+Buffer Pool --> Writes to disk at checkpoints	   --> - Internal data dictionary
+													   - Insert undo logs
+													   - Update undo logs
+													     ------------------------
+														  Undo log
+
+
+Configuring the Buffer Pool		----------------------------------------------
+
+	• Assign as much RAM as you can to the buffer pool to avoid disk I/O on hot data
+		- Set the value of innodb_buffer_pool_size so that it uses 70–80% of memory.
+		- On a host that is dedicated to using MySQL:
+			- Calculate the RAM used by the operating system and occasional administrative programs such as backups that minimize paging
+			- Assign 50-80% of the remaining memory to the buffer pool depending on the session memory requirements
+			- Example: On a 16 GB Linux system dedicated to MySQL, assign approximately 12 GB to the buffer pool.
+
+	• Enable multiple buffer pools to minimize mutex contention
+		- InnoDB automatically configures eight buffer pool instances when your total buffer pool size is larger than 1 GB.
+		- Set innodb buffer pool instances so that each instance uses at least 1 GB.
+
+
+
+MySQL Plugin Interface		--------------------------------
+
+	• Daemon plugins are run by the server.
+	• The plugin API allows loading and unloading of server components.
+		- Supports dynamic loading, without restarting server
+
+	• Example plugins:
+
+		- Japanese MeCab full-text parser
+		- PAM Authentication
+		- Thread Pool plugin
+		- Rewriter plugin
+		- Third-party storage engines
+
+	• MySQL supports both client and server plugins.
+
+
+MySQL Component Interface		--------------------------------
+
+	• Both components and plugins can dynamically extend the functionality of MySQL server.
+	• MySQL component interface is introduced to overcome some of the architectural constraints of the plugin interface.
+		- Components are self-contained code containers that interact with other code exclusively by implementing and consuming services via the registry.
+		- Each component can communicate with other components only through services.
+
+	• Example components:
+		- Error log components
+		- Password Validation component
+		- Audit Message component
+
+
+
+------------------	[ Demo : Configuring tablespaces ] --------------------------------
 
 
