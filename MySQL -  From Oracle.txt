@@ -2345,3 +2345,419 @@ such as SELinux, the preceding command fails.
 	mysql> EXIT
 
 
+------------------	[ Chap.4: Configuring MySQL ] --------------------------------
+
+Variables we set at Global vs Session level
+
+Exple :
+
+	mysql> show global variables like 'sort%'
+	mysql> show variables like 'sort%';
+	mysql> select @@global.sort buffer size,@@session.sort buffer size;		<---- old way
+
+If you do not specify global, by default it will get session value
+
+We can see more options available using : $mysql --help --verbose
+
+Default options are read from the following files in the given order:
+
+	/etc/my.cnf
+	/etc/mysql/my.cnf 
+	/usr/local/mysql/etc/my.cnf
+	~/.my.cnf
+
+Use the command below to check if everything is good after you did a modification in config file :
+
+	$ mysql --help --verbose 1>/tmp/null
+
+Exple of config file where we have multiple servers (they only share the host): 
+
+[root@edvmrlpo labs]# cat multi.cnf
+
+	[mysqld@server1]
+	user=mysql
+	socket=/mysql/serverl.sock
+	port=3311
+	datadir=/mysql/datal
+	log-error=/mysql/serverl.err
+	mysqlx=OFF
+
+	[mysqld@server2]
+	user=mysql
+	socket=/mysql/server2.sock
+	port=3312
+	datadir=/mysql/data2
+	log-error=/mysql/server2.err
+	mysqlx=OFF
+
+	[mysqld@server3]
+
+	user=mysql
+	socket=/mysql/server3.sock
+	port=3313
+	datadir=/mysql/data3
+	log-error=/mysql/server3.err
+	mysqlx=OFF
+
+	[mysqld@server4]
+	user=mysql
+	socket=/mysql/server4.sock
+	port=3314
+	datadir=/mysql/data4
+	log-error=/mysql/server4.err
+	mysqlx=OFF
+	
+
+MySQL Configuration Options  --------------------------------
+
+From higher to lower precedence :
+
+	1.Dynamically Set Variables
+	2.Persisted Variables
+	3.Command-Line Options
+	4.Configuration File Options
+	5.Precompiled Defaults
+	
+	• When you start MySQL clients or the server, specify configuration options:
+		- At the command line
+		- In a configuration file
+
+	• If you do not specify a value for an option, MySQL uses a precompiled default.
+	• On a running server, you can change the values of dynamic variables.
+	• On a running server, you can set persisted variables that remain effective after the server restarts.
+
+
+Deciding When to Use Options :
+
+The following list contains some of the many things you can achieve by setting option values:
+
+	• Control which log files the server writes
+	• Specify the locations of important directories and files
+		- Data directory, log files, PID, and socket files
+	• Override the server''s built-in values for performance-related variables
+		- The maximum number of simultaneous connections
+		- Sizes of buffers and caches
+	• Enable or disable precompiled storage engines at server startup
+
+Displaying Configured Server Options   --------------------------------
+
+To find out what options your server supports, execute one of the following comma
+
+	• At the mysql prompt:
+
+		SHOW GLOBAL VARIABLES;
+
+	• At the command line, if the server is running:
+
+		mysqladmin variables
+
+		- The preceding commands also show values that you changed dynamically starting MySQL.
+
+	• At the command line, even if the server is not running:
+
+		mysqld --verbose --help
+
+		- The values include precompiled defaults, option file settings, and command options. Persisted variables are excluded.
+		- Unlike other variants of the mysqld command, this command does not start the mysql process
+
+
+Option Naming Convention   --------------------------------
+
+In general, option names have the following conventions:
+
+	• Option files: Lowercase option names with words separated by the dash "-" or underscore character.
+	• Command line: Same as option file but prefixed with two dashes "--"
+	• Variable (in the running server): Same as option file but with words always separated by the underscore character
+
+Examples:
+
+	Option file					Command line				Variable
+
+	datadir						--datadir					datadir
+	log-error					--log-error					log_error
+	default_password_lifetime 	--default password lifetime default_password_lifetime
+
+
+Using Command-Line Options    --------------------------------
+
+• Launch mysqld at the command prompt, providing command-line options:
+
+	$ mysqld --no-defaults --basedir=/opt/mysql --datadir=/mysql/data --user=mysql --pid-file=/mysql/pid  --socket=/mysql/socket --port=3307
+
+	- Create scripts containing invocations that you use frequently so that you can avoid typing out long command lines.
+	- The mysqld_safe script launches mysqld with command-line options.
+
+	NB : '--no-defaults' tells mysql to not use any default file 
+
+• Launch command-line clients:
+
+	- mysql
+
+		mysql
+		mysql --socket=/mysql/socket -uroot -p
+
+	- mysqladmin
+
+		mysqladmin -uroot -p variables
+		
+		
+
+Reasons to Use Option Files    --------------------------------
+
+• You do not need to specify options on the command line each time you start the server.
+	- More convenient
+	- Less error-prone for complex options
+You can review an option file to view the server configuration in one place.
+You can create multiple configurations with grouped options, each in its own configuration file.
+	- Start multiple servers on the same host with different configurations.
+	- Start test or development servers with alternative configurations.
+
+
+Option File Locations     --------------------------------
+
+	• MySQL server looks for files in standard locations.
+
+	• Standard option file names are different for Linux and Windows:
+		- In Linux, use the my.cnf file.
+		- In Windows, use the my.ini file.
+			- MySQL also recognizes my.cnf, but my.ini is standard.
+			
+	• The server may read multiple option files from different locations.
+		- Most installations use a single option file for simplicity.	<-- The last value of an option red, overwrites the 
+																			other values of this option 
+
+
+Option Files That Each Program Reads      --------------------------------
+
+	• Run the MySQL program with the --help command-line option.
+
+		- Server: Add --verbose to view server option files.
+
+			$ mysqld --help --verbose
+
+	• Clients:
+
+		$ mysql -help
+		$ mysqlslap --help
+
+	• Example output:
+
+		....
+		Default options are read from the following files in the given order:
+		/etc/my.cnf /etc/mysql/my.cnf /usr/local/mysql/etc/my.cnf ~/.my.cnf
+		....
+
+Standard Option Files      --------------------------------
+
+• Linux:
+
+	- The file /etc/my.cnf serves as a global option file used by all users.
+	- Create user-specific option files named.my.cnf in the user''s home directory.
+	- If the MYSQL HOME environment variable is set, it searches for the $MYSQL HOME/my.cnf file.
+
+• Windows:
+
+	- The global option files are my.ini and my.cnf in any of the following directories:
+		- %PROGRAMDATA%\MySQL\MySQL Server 8.0: where % PROGRAMDATA% is usually C:\ProgramData
+		- The MySQL base installation directory, typically: C:\Program Files\MySQL\MySQL 8.0 Server 
+		- %WINDIR%: usually C:\Windows
+		- C:\
+
+Option File Groups    --------------------------------
+
+Options in option files are organized into groups.
+
+	• Each group is preceded by a [group-name] line that names the group.  
+	• Typically, the group name is the category or name of the program to which the group of options applies.
+
+All Clients :
+
+	[client]				<--- applies to all clients
+
+	Client-Specific :
+
+		[mysql]
+		[mysqldump]
+
+		...
+
+All Servers
+
+[server]	
+
+	Server-Specific
+
+		[mysqld]
+		[mysqld-8.0]
+
+		...
+
+
+Option Groups That Each Program Reads    --------------------------------
+
+	• Run the MySQL program with the --help command-line option
+
+		- Option groups appear below the option file locations.
+		- Server: Add --verbose to view server option files.
+
+	• Examples:
+
+		mysql> mysqld --help --verbose |grep "following groups"
+			The following groups are read: mysqld server mysqld-8.0
+
+		mysql> mysql --help | grep "following groups"
+			The following groups are read: mysql client
+
+		mysql> mysqladmin --help | grep "following groups"
+			The following groups are read: mysqladmin client
+
+Option Group Names :
+
+Examples of groups include:
+
+	• [client]: Options that apply to all client programs
+
+		- Often used to specify connection parameters common to all clients
+
+	• [mysql] and [mysqldump]: Options that apply to mysql and mysqldump clients, respectively
+
+		- Other client programs read option groups with their own names.
+
+	• [server]: Options that apply to all server programs or scripts
+
+	• [mysqld], [mysqld-8.0], and [mysqld safe]: Options that apply to specific server programs or scripts
+
+
+Client Options: Examples    --------------------------------
+
+Some examples of mysql client options:
+
+	• user and password: Plain text authentication credentials
+		- Use mysql_config_editor to create encrypted credentials.
+			- Creates a .mylogin.cnf file in the home directory to store the credentials
+
+	• database=dbname: Specify the database or schema to use
+
+	• prompt=prompt: Replaces the default mysql> prompt
+		Example: prompt='\u@\h[\d]> '
+		Produces the prompt username@hostname [database]>
+
+	• safe-updates: Prevents UPDATE or DELETE operations that do not specify a WHERE clause
+	• init-command=SQL: SQL string that the client executes as soon as it connects
+	• tee=filename: Appends all commands and output to the specified file
+
+
+Writing Option Files
+
+	• To create or modify an option file:
+
+		- The editing user must have write permission on the file.
+		- MySQL programs need only read access.
+			- Server and client programs read option files but do not create or modify them.
+		- MySQL programs ignore any world writable option files.
+
+	• To write an option in an option file:
+
+		- Use the option file form:
+			- Similar to the command-line form, but omitting the leading dashes
+		- If an option takes a value, spaces are allowed around the equal ( = ) sign.
+			- This is not true for options specified on the command line, which do not accept spaces around the equal sign.
+
+Option File Contents: Example
+
+	[mysqld]
+	datadir=/var/lib/mysql
+	socket=/var/lib/mysql/mysql.sock
+	log-error=/var/log/mysqld.log
+	pid-file=/var/run/mysqld/mysqld.pid
+
+	[client]						<--- Applies to all clients
+	host=myhost.example.com
+	compress
+
+	[mysql]							<--- Applies to specific client
+	show-warnings
+	prompt='\u@\h[\d]> '
+
+Option Precedence in Option Files
+
+	• MySQL programs read configuration files in a defined order.
+		- Viewed with program --help (--verbose]
+
+	• MySQL programs read options from multiple option groups.
+		- Example: mysqld reads from the [mysqld], (server), and [mysqld-8.0] groups.
+
+	• If an option value is specified in multiple configuration files, options in later files override options in preceding files.
+	• If an option value is specified in multiple groups within the same file, options that are later in the file take precedence.
+
+
+
+Loading or Ignoring Option Files from the Command Line
+
+	Specify one of the following as the first option on the command line to control which option files MySQL reads:
+
+	• --no-defaults: Do not read any option files.
+	• --defaults-file=file_name: Use only the option file at the specified location.
+	• --defaults-extra-file=file name: Use an additional option file at the specified location after reading all the standard option files.
+	• Example:
+
+		$ mysql --defaults-file=/etc/my-opts.cnf
+
+		- Uses only the /etc/my-opts.cnf file and ignores the standard option files
+
+
+
+Loading Option Files with Directives
+
+	Place these directives in an option file so that programs load additional option files.
+
+	• !include file name
+		- Load additional options from file_name.
+
+	• !includedir directory:
+		- Load additional options from files in the directory that end in .cnf (or.ini for Windows).
+		- MySQL does not read the option files in the directory in a predictable order.
+		- Ensure that there are no conflicting option values in the included files.
+
+
+Displaying Options from Option Files
+
+	Execute my_print_defaults to display options per group from the command line.
+
+		• To display options in the [mysql] and [client] groups:
+
+			$ my_print_defaults mysql client
+				--user=myusername
+				--password=secret
+				--host=localhost
+				--port=3306
+
+		• Or (for the same result):
+
+			$ mysql --print-defaults mysql client
+
+
+Quiz    --------------------------------
+
+In addition to the [mysqldump] group, the mysqldump program reads options from which of the following option groups?
+
+	a. [client]	*
+	b. [mysql]
+	C. [mysqld]
+	d. [server]
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
