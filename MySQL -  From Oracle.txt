@@ -2747,7 +2747,7 @@ In addition to the [mysqldump] group, the mysqldump program reads options from w
 	d. [server]
 
 
--------------- Chap 4 ---------------
+-------------- [ Chap 4 : System variables ] ---------------
 
 
 
