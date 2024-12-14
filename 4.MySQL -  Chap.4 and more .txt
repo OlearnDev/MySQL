@@ -477,10 +477,79 @@ Enter the following statements at the mysql prompt in tl and receive the results
 
 	As the server takes some time to restart, if you encounter an error connecting to the server, retry the SHOW statement.
 
-	9. Leave the mysql client session open for the next practice.
+
+----------- Demo 4-2: 4-3: Changing Dynamic Settings   ----------- 
+
+1. At the mysql prompt you left open in the preceding practice, attempt to use a SET GLOBAL command to change the port number to 3303. What happens?
+
+	mysql> SET GLOBAL port=3303;
+
+		ERROR 1238 (HY000): Variable 'port' is a read only variable
+
+	The mysql client displays an error because the port option is not dynamic. You can change it at the command line or in an option file, 
+	but you cannot change it in a running MySQL server.
+
+2. Use SET GLOBAL to change the value of the max_connections system variable to 1. What happens?
+
+	mysql> SET GLOBAL max_connections=1; 
+	
+
+	The statement succeeds because the max_connections variable is dynamic. You can change it at the command line or in an option file by referring
+	to its option name max-connections, and you can change it in a running MySQL server by referring to its system variable name max_connections.
+
+3. Display the value of the autocommit variable by using a SHON VARIABLES LIKE command.
+
+	mysql> SHOW VARIABLES LIKE 'autocommit';
+
+	autocommit  ON
 
 
+4. Change the value of the global aut.ccommit variable to OFF.
 
+	mysql> SET GLOBAL autocommit=OFF; 
+
+5. Repeat step 3. Explain your results.
+
+	mysql> SHOW VARIABLES LIKE 'autocommit';
+
+	autocommit	ON
+
+The autocommit variable has both global and session versions. The SHOW VARIABLES LIKE command displays the session version of variables that 
+have both global and session versions unless you provide the GLOBAL OF SESSION modifier.
+
+6. Query the Performance Schema variables_info table for information about the max_connections and autocommit system variables.
+
+	mysql> SELECT FROM performance_schema.variables_info WHERE variable name IN ('max connections', 'autocommit')\G
+
+	VARIABLE_NAME: autocommit
+	VARIABLE_SOURCE: DYNAMIC
+	VARIABLE PATH:
+	MIN VALUE: 0
+	MAX VALUE: 0
+	SET USER:root
+	SET HOST:localhost
+
+	VARIABLE_NAME:max connections
+	VARIABLE SOURCE:DYNAMIC
+	VARIABLE_PATH:
+	MIN VALUE: 1
+	MAX VALUE:100000
+	SET USER: root
+	SET HOST: localhost
+
+	The variable source value DYNAMIC indicates the variables are set at run time. The SET TIME column shows the time at which the variable 
+	was most recently set. The SET USER and SET HOST columns show the client user that most recently set the variable.
+
+7. Execute RESTART at the myagi prompt to restore the max_connections system variable to its default value.
+
+	mysql> RESTART:
+	mysql> SHOW GLOBAL VARIABLES LIKE 'max_connections';
+
+		ERROR 2006 (HY000): MySQL server has gone away
+
+	max_connections 151
+
+	As the server takes some time to restart, if you encounter an error connecting to the server, retry the SHOW statement.
 
 
 
