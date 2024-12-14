@@ -40,31 +40,31 @@ Server System Variables
 
 Dynamic System Variables
 
-• Change dynamic variables at run time to avoid changing the option files and restarting the server.
+	• Change dynamic variables at run time to avoid changing the option files and restarting the server.
 
-• If you change a variable with both global and session scope:
-	- Changing the global variable affects all new connections
-	- Changing the session variable affects the current connection
+	• If you change a variable with both global and session scope:
+		- Changing the global variable affects all new connections
+		- Changing the session variable affects the current connection
 
 
-Changing Variable Values  	-----------------------------------------------------
+	Changing Variable Values  	-----------------------------------------------------
 
-• Setting a global variable requires SYSTEM_VARIABLES_ADMIN or SUPER privilege.
-• Setting a session variable requires no special privilege.
-	- A client can change only its own session variables.
+	• Setting a global variable requires SYSTEM_VARIABLES_ADMIN or SUPER privilege.
+	• Setting a session variable requires no special privilege.
+		- A client can change only its own session variables.
 
-		$ SET GLOBAL max_connections=200;
-		$ SET @@session.sort_buffer_size=512*1024;
+			$ SET GLOBAL max_connections=200;
+			$ SET @@session.sort_buffer_size=512*1024;
 
-• LOCAL and @@local are synonyms for SESSION and @@session.
+	• LOCAL and @@local are synonyms for SESSION and @@session.
 
-• If you do not specify GLOBAL or SESSION:
-	- SET changes the session variable if it exists
-	- SET produces an error if the session variable does not exist
+	• If you do not specify GLOBAL or SESSION:
+		- SET changes the session variable if it exists
+		- SET produces an error if the session variable does not exist
 
-	mysql> SET max_connections=200;
+		mysql> SET max_connections=200;
 
-	ERROR 1229 (HY000): Variable 'max connections' is a GLOBAL variable and should be set with SET GLOBAL
+		ERROR 1229 (HY000): Variable 'max connections' is a GLOBAL variable and should be set with SET GLOBAL
 
 
 Persisting Global Variables 	-------------------------------------
@@ -437,7 +437,8 @@ Enter the following statements at the mysql prompt in tl and receive the results
 
 	The variable source value EXPLICIT indicates the variables are set from an option file named with the --defaults-file option.
 
-5. In 12, use a text editdr to edit the /etc/my.cnf file, removing the port and max_connections settings that you configured in step 1. The /etc/my.cnf file should now contain settings similar to those that follow, with any differences that you set in preceding practices:
+5. In 12, use a text editdr to edit the /etc/my.cnf file, removing the port and max_connections settings that you configured in step 1. 
+	The /etc/my.cnf file should now contain settings similar to those that follow, with any differences that you set in preceding practices:
 
 	[mysqld]
 	innodb_buffer_pool_size=126
@@ -478,9 +479,9 @@ Enter the following statements at the mysql prompt in tl and receive the results
 	As the server takes some time to restart, if you encounter an error connecting to the server, retry the SHOW statement.
 
 
------------ Demo 4-2: 4-3: Changing Dynamic Settings   ----------- 
+----------- Demo 4-3: Changing Dynamic Settings   ----------- 
 
-1. At the mysql prompt you left open in the preceding practice, attempt to use a SET GLOBAL command to change the port number to 3303. What happens?
+1. At the mysql prompt, attempt to use a SET GLOBAL command to change the port number to 3303. What happens?
 
 	mysql> SET GLOBAL port=3303;
 
@@ -504,7 +505,7 @@ Enter the following statements at the mysql prompt in tl and receive the results
 	autocommit  ON
 
 
-4. Change the value of the global aut.ccommit variable to OFF.
+4. Change the value of the global autocommit variable to OFF.
 
 	mysql> SET GLOBAL autocommit=OFF; 
 
@@ -514,33 +515,33 @@ Enter the following statements at the mysql prompt in tl and receive the results
 
 	autocommit	ON
 
-The autocommit variable has both global and session versions. The SHOW VARIABLES LIKE command displays the session version of variables that 
-have both global and session versions unless you provide the GLOBAL OF SESSION modifier.
+	The autocommit variable has both global and session versions. The 'SHOW VARIABLES LIKE' command displays the session version of variables that 
+	have both global and session versions unless you provide the GLOBAL OR SESSION modifier.
 
 6. Query the Performance Schema variables_info table for information about the max_connections and autocommit system variables.
 
-	mysql> SELECT FROM performance_schema.variables_info WHERE variable name IN ('max connections', 'autocommit')\G
+	mysql> SELECT FROM performance_schema.variables_info WHERE variable name IN ('max_connections', 'autocommit')\G
 
-	VARIABLE_NAME: autocommit
-	VARIABLE_SOURCE: DYNAMIC
-	VARIABLE PATH:
-	MIN VALUE: 0
-	MAX VALUE: 0
-	SET USER:root
-	SET HOST:localhost
+		VARIABLE_NAME: autocommit
+		VARIABLE_SOURCE: DYNAMIC
+		VARIABLE PATH:
+		MIN VALUE: 0
+		MAX VALUE: 0
+		SET USER:root
+		SET HOST:localhost
 
-	VARIABLE_NAME:max connections
-	VARIABLE SOURCE:DYNAMIC
-	VARIABLE_PATH:
-	MIN VALUE: 1
-	MAX VALUE:100000
-	SET USER: root
-	SET HOST: localhost
+		VARIABLE_NAME:max_connections
+		VARIABLE SOURCE:DYNAMIC
+		VARIABLE_PATH:
+		MIN VALUE: 1
+		MAX VALUE:100000
+		SET USER: root
+		SET HOST: localhost
 
 	The variable source value DYNAMIC indicates the variables are set at run time. The SET TIME column shows the time at which the variable 
 	was most recently set. The SET USER and SET HOST columns show the client user that most recently set the variable.
 
-7. Execute RESTART at the myagi prompt to restore the max_connections system variable to its default value.
+7. Execute RESTART at the mysql prompt to restore the max_connections system variable to its default value.
 
 	mysql> RESTART:
 	mysql> SHOW GLOBAL VARIABLES LIKE 'max_connections';
@@ -552,4 +553,135 @@ have both global and session versions unless you provide the GLOBAL OF SESSION m
 	As the server takes some time to restart, if you encounter an error connecting to the server, retry the SHOW statement.
 
 
+----------- Demo 4-4: Persisting Global Variables   ----------- 
 
+1. At the mysql prompt, use a SET PERSIST statement to change the maximum number of connections to 99 and verify that the change has taken effect.
+
+	mysql> SET PERSIST max_connections=99;
+	mysql> SHOW GLOBAL VARIABLES LIKE 'max_connections';
+
+	max_connections  99
+
+2. Execute the RESTART SQL statement to restart the MySQL server.
+
+	mysql> RESTART:
+
+3. Verify that the change to the max_connections global system variable is still in effect.
+
+	mysql> SHOW GLOBAL VARIABLES LIKE 'max connections';
+
+		ERROR 2006 (HY000): MySQL server has gone away
+
+	max_connections | 99
+
+4. Examine the contents of the mysqld-auto.onf file in the data directory by executing the following command through mysql client system command:
+
+	mysql> \! cat /var/lib/mysql/mysqld-auto.cnf | python -m json.tool
+
+	{
+
+	"Version": 1,
+	"mysql_server": {
+		"max connections": {
+			"Metadata": {
+				"Host": "localhost",
+				"Timestamp": timestamp,
+				"User": "root"
+			},
+			"Value": "99"
+	}}}
+
+The mysqld-auto.cnf file contains details of the change you made to the global max_connections system variable by executing the SET PERSIST statement.
+
+5. Query the Performance Schema variables_info table for information about the max_connections system variable.
+
+	mysql> SELECT FROM performance_schema.variables_info WHERE variable_name LIKE 'max_connections' \G -
+
+		VARIABLE_NAME: max_connections
+		VARIABLE_SOURCE: PERSISTED
+		VARIABLE PATH: /var/lib/mysql/mysqld-auto.cnf
+		MIN VALUE: 1
+		MAX VALUE: 100000
+		SET TIME: date-and-time
+		SET USER: root
+		SET HOST: localhost
+
+6. Execute SET PERSIST again to change the maximum number of connections to DEFAULT and verify that the max_connections system variable now 
+	has the default value of 151.
+
+	mysql> SET PERSIST max_connections=DEFAULT;
+	mysql> SHOW GLOBAL VARIABLES LIKE 'max_connections';
+
+	max_connections | 151
+
+7. Query the Performance Schema variables_info table for information about the max_connections system variable.
+
+	mysql> SELECT FROM performance_schema.variables_infoWHERE variable name LIKE 'max_connections' \G
+
+		VARIABLE_NAME: max_connections
+		VARIABLE SOURCE: DYNAMIC
+		VARIABLE PATH:
+		MIN VALUE: 1
+		MAX VALUE:100000
+		SET USER:root
+		SET HOST:localhost
+		
+	The max_connections variable is now DYNAMIC instead of PERSISTED, because it was changed at run time rather than from the startup files at 
+	startup. After the MySQL server restarts, it will show PERSISTED.
+
+8. Examine the contents of the mysqld-auto.onf file in the data directory.
+
+	mysql> \! cat /var/lib/mysql/mysqld-auto.cnf python json.tool
+
+{
+	"Version": 1,
+	"mysql_server": {
+	"max_connections": (
+		"Metadata": {
+		"Host": "localhost",
+		"Timestamp": 1528293147578250,
+		"User": "root"
+		},
+		"Value": "151"
+	}
+}}
+
+The max_connections entry in the mysqld-auto.cnf file now shows that the value has changed to the default max number of connections: 151.
+
+9. Execute a RESET PERSIST statement to reset the max_connections system variable to a nonpersisted state.
+
+	mysql> RESET PERSIST max_connections;
+
+10. Examine the contents of the mysqld-auto.enf file in the data directory.
+
+	mysql> \! cat /var/lib/mysql/mysqld-auto.cnf | python json.tool
+
+	{
+	"Version": 1,
+	"mysql_server": {}
+	}
+
+	The mysqld-auto.cnf file no longer has any configuration for the max_connections system variable.
+
+11. Execute the RESTART SQL statement to restart the MySQL server.
+
+	mysql> RESTART;
+
+12. Query the Performance Schema variables_info table for information about the max_connections system variable.
+
+	mysql> SELECT FROM performance_schema.variables_info WHERE variable name LIKE 'max connections' \G
+
+		VARIABLE NAME: max connections
+		VARIABLE SOURCE: COMPILED
+		VARIABLE_PATH:
+		MIN VALUE: 1
+		MAX VALUE:100000
+		SET TIME: NULL
+		SET USER: NULL
+		SET HOST:
+		NULL
+
+	The max_connections variable is now COMPILED, because it is not configured in any startup file.
+	As the server takes some time to restart, if you encounter an error connecting to the server, retry the SELECT statement.
+
+13. Leave the mysql client session open for the next practice.
