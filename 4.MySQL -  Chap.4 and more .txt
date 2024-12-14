@@ -1,1 +1,486 @@
 -------------- [ Chap 4 : System variables ] ---------------
+
+Server System Variables
+
+	• In a running server, configured options are known as system variables.
+
+		- Variables that you have not configured in option files or in command-line options assume their precompiled default values.
+
+	• You can change the value of some system variables in a running server.
+
+		- These are called dynamic variables.
+
+	• You can refer to system variable values in expressions or by querying Performance Schema tables.
+
+		global_variables: Global system variables
+		session_variables: System variables for the current session
+		variables_by_thread: Session system variables for each active session
+		persisted_variables: Persisted global system variable
+		variables_info: The source from which each system variable was most recently set.
+
+
+	System Variable Scope: GLOBAL and SESSION
+
+	• MySQL maintains two scopes that contain system variables.
+
+		- GLOBAL variables affect the overall operation of the server.
+			- Changed with SET GLOBAL variable_name or SET @@global.variable_name
+
+		- SESSION variables affect individual client connections. 
+			- Changed with SET SESSION variable_name or SÉT @@session.variable_name
+
+	• Variables are global, session, or both.
+		- Variables that exist in both scopes have global and per-connection values that you can set independently.
+
+	• Examples of variables and their scope include:
+		- Global only: innodb_buffer_pool_size, max_connections
+		- Both global and session: sort_buffer_size, join _buffer_size
+		- Session only: timestamp, error_count
+
+
+Dynamic System Variables
+
+• Change dynamic variables at run time to avoid changing the option files and restarting the server.
+
+• If you change a variable with both global and session scope:
+	- Changing the global variable affects all new connections
+	- Changing the session variable affects the current connection
+
+
+Changing Variable Values  	-----------------------------------------------------
+
+• Setting a global variable requires SYSTEM_VARIABLES_ADMIN or SUPER privilege.
+• Setting a session variable requires no special privilege.
+	- A client can change only its own session variables.
+
+		$ SET GLOBAL max_connections=200;
+		$ SET @@session.sort_buffer_size=512*1024;
+
+• LOCAL and @@local are synonyms for SESSION and @@session.
+
+• If you do not specify GLOBAL or SESSION:
+	- SET changes the session variable if it exists
+	- SET produces an error if the session variable does not exist
+
+	mysql> SET max_connections=200;
+
+	ERROR 1229 (HY000): Variable 'max connections' is a GLOBAL variable and should be set with SET GLOBAL
+
+
+Persisting Global Variables 	-------------------------------------
+
+Use 'SET PERSIST variable_name = value' to maintain global variable values across server restarts.
+
+	• Use DEFAULT in place of value to restore the default value.
+	
+	• Requires the following server privileges:
+		- SYSTEM_VARIABLES_ADMIN 
+		- PERSIST_RO_VARIABLES_ADMIN 
+
+	• Stores details of changes in the mysqld-auto.cnf file in the data directory, in JSON format:
+		- The variable name and current value
+		- When and by whom the change was
+
+
+NB : Prior to 8.0, if we wanted to change a variable and I wanted it to persist, we run the SET command and have to go in and make sure I change
+it into my.cnf file. If not, the change will disappear. Now, if it is a dynamic variable, we use SET command to set it and it will store it in 
+a file called mysqld-auto.cnf in a json format and the system can continue to use it after system restart
+
+# cat /var/lib/mysql/mysqld-auto.cnf
+
+{
+	"Version":1,
+	"mysql server":{
+		"max_connections":{
+			"Value":"152",
+			"Metadata":{
+				"Timestamp":1526635140519175,
+				"User":"root",
+				"Host":"localhost"
+				}
+		}
+	}
+}
+
+
+Displaying System Variables :
+
+	• List all available variables and their values:
+		SHOW [GLOBAL|SESSION] VARIABLES;
+
+	• List specific variable values:
+		mysql> SHOW VARIABLES LIKE 'read_only';
+
+	• Set a new value and then display it:
+		mysql> SET GLOBAL read_only=ON;
+		mysql> SHOW VARIABLES LIKE 'read only';
+
+Viewing Variables with Performance Schema
+
+	• The global variables, session variables, and persisted variables tables contain global variables, current session variables, 
+		and persisted global variables, respectively.
+
+		mysql> SELECT * FROM global_variables WHERE VARIABLE_NAME='pid_file';	
+		mysql> SELECT * FROM persisted variables;
+
+	• The variables by thread table contains session variables for all active threads.
+
+	• The variables info table contains the source from which each system variable was most recently set and its range of values.
+
+		mysql> SELECT * FROM variables_by_thread WHERE THREAD_ID=27 AND VARIABLE_NAME='sort_buffer_size';
+		mysql> SELECT VARIABLE_NAME, VARIABLE_SOURCE, VARIABLE_PATH FROM variables_info WHERE VARIABLE_NAME='datadir';
+
+
+Launching Multiple Servers on the Same Host
+
+	• Useful for many administrative purposes, such as:
+		- Testing a new release of MySQL
+		- Testing replication and high availability
+		- Partitioning client groups into different servers
+
+	• Can be achieved with multiple methods:
+		- Start mysqld or mysqld_safe using command-line options.
+		- Start mysqld or mysqld_safe with a different option file for each server.
+			- Use the --defaults-file option.
+		- mysqld_multi manages multiple similar servers with different settings.
+		- systemd service manager can manage multiple service instances.
+
+	• Servers must not share filesystem or network resources with other servers.
+
+
+Settings That Must Be Unique
+
+	• Data Directory
+		- Start each server with a unique value for the --datadir option.
+
+	• Connection Layer
+		Specify unique connection parameters by starting each server with a unique value for the --port (or --bind-address), --socket, 
+		and --shared-memory-basename options.
+
+	• Log and PID Files
+		- By default, these are in the data directory, which must be unique for each server.
+		- If you use nondefault locations, specify unique values for --log-error and other log file options and the --pid-file option.
+
+	• InnoDB Tablespaces and Log Files
+		- By default, these are in the data directory
+		- If you use nondefault locations [specify location] for tablespaces.
+
+
+mysqld_multi :
+
+	• Designed to manage several mysqld processes on the same host
+
+		- Each mysqld process listens for connections on a unique UNIX socket file, TCP/IP port, named pipe, or shared memory base name.
+
+	• Applies options to each server N from groups named [mysqldN] in configuration files
+		- Each group contains options that apply to a single numbered host.
+			- Examples: [mysqld1], [mysqld3]
+
+		- Specify configuration files in the usual way.
+			- Standard configuration files including /etc/my.cnf
+			- Files that you specify with --defaults-file or --defaults-extra-file
+
+	• Start two mysqld instances that:
+
+		- Apply settings from only multi.cnf
+		- Read the sections [mysqldl] and [mysqld3], respectively
+			$mysqld multi --defaults-file=multi.cnf start 1,3
+
+
+systemd: Multiple MySQL Servers  	-------------------------------------
+
+	• The systemd service manager uses the mysqld@.service configuration file to manage multiple MySQL server instances.
+
+	• When you start a MySQL server instance using:
+
+		$ systemctl start mysqld@replica01
+
+		- replica01 represents the instance identifier.
+		- systemd starts mysqld with the --defaults-group-suffix=@%I option where %I is substituted with replica01.
+		- In addition to the [mysqld] and [server] groups, mysqld reads options from the [mysqld@replica01] group.
+
+	• For every MySQL server instance, add an option group [mysqld@<unique_id>] into the option file. Specify all the instance-specific options into the option group.
+
+	• Check the status of multiple instances by using a wildcard:
+
+		$ systemctl status mysqld@replica*
+
+
+Quiz  	-------------------------------------
+
+The sql_notes variable is both global and session and specifies if Note level events are logged as warnings. If you change its value from 1 
+(the default) to 0 with the following command, what is the effect?
+
+	$ SET GLOBAL sql_notes=0;
+
+	a. All connections stop logging Note events.
+	b. Existing connections continue to log Note events; new connections do not.
+	c. Existing connections that are currently logging Note events continue doing so. All other connections 	*
+		including new connections stop logging them.		
+	d. New connections are prevented from executing the command SET SESSION sql_notes=1.
+
+
+----------- Demo 4-1: Modifying a Setting by Using Command-Line Arguments   ----------- 
+
+Assumptions
+
+	- SELinux is disabled (or permissive), and no other mandatory access control systems prevent MySQL from writing to the Linux filesystem 
+	 or using nondefault port numbers.
+	- The/labs/multi.cnf file contains configuration settings for four MySQL instances controlled by systemd mysqlde.service.
+	
+1. Open two Linux terminal windows. This practice refers to these terminal windows as tl and t2.
+
+2. Launch a mysql client session in terminal t1 and enter SQL commands to display the values of the port and max_connections system variables.
+
+	mysql -uroot -p
+	Enter password: oracle
+
+	mysql> SHOW VARIABLES LIKE 'port';
+
+	port  3306
+
+	mysql> SHOW VARIABLES LIKE 'max_connections';
+	
+	max_connections	151
+
+3. Query the Performance Schema variables_info table for information about the max_connections and port system variables.
+
+	mysql> SELECT * FROM performance_schema.variables_info WHERE variable_name IN ('max_connections', 'port')\G
+
+1. row
+
+	VARIABLE_NAME: max connections
+	VARIABLE SOURCE:COMPILED
+	VARIABLE PATH:
+	MIN VALUE: 1
+	MAX VALUE: 100000
+	...
+
+
+	VARIABLE_NAME:port
+	VARIABLE SOURCE:COMPILED
+	VARIABLE PATH:
+	MIN VALUE: 0
+	MAX VALUE: 65535
+
+	The variable source value COMPILED indicates the variables are the compiled default value.
+
+4. In terminal window t2, use mysqladmin to stop the MySQL service.
+
+	#mysqladmin -uroot -p shutdown
+	Enter password: oracle
+	
+5. In t2, start the MySQL daemon as a background service by using the mysqld command, specifying command-line options for the following settings:
+
+	Port: 3300
+	Maximum number of connections: 50
+
+	Note the process ID of the newly started process.
+	
+	$ mysqld --port=3300 --max-connections=50 &
+
+	[1] 25387
+	...
+
+6. In 1, display the values of the port and max_connections system variables.
+
+	mysql> SHOW VARIABLES LIKE 'port';
+
+		ERROR 2006 (HY000): MySQL server has gone away
+		No connection. Trying to reconnect...
+		Connection id: 8
+		Current database:
+		***
+		NONE
+		***
+
+6. In t1, display the values of the port and max_connections system variables.
+
+Enter the following statements at the mysql prompt in tl and receive the results shown:
+
+	mysql> SHOW VARIABLES LIKE 'port':
+
+		ERROR 2006 (HY000): MySQL server has gone away
+		No connection. Trying to reconnect...
+		Connection id: 8
+		Current database:
+		*** ***
+
+		NONE
+
+	port	3300 |
+
+
+	mysql> SHOW VARIABLES LIKE 'max_connections';
+
+	max_connections 50
+
+
+- The mysql client displays a "MySQL server has gone away" message when it reconnects to a server that you have restarted.
+- The values of the variables have changed to those you specified with the command- line options you provided in step 4.
+
+7. Query the Performance Schema variables_info table for information about the max_connections and port system variables.
+
+	mysql> SELECT FROM performance_schema.variables_info WHERE variable_name IN ('max_connections', ,'port')\G
+	VARIABLE_NAME: max_connections
+	VARIABLE SOURCE: COMMAND LINE
+	VARIABLE_PATH:
+	MIN VALUE: 1
+	MAX VALUE: 100000
+
+	...
+
+	VARIABLE NAME: port
+	VARIABLE_SOURCE:COMMAND_LINE
+	VARIABLE PATH:
+	MAX VALUE: 65535
+	
+
+8. In t1, shut down the mysqld process by executing the SHUTDOWN command at the mysql prompt. Observe the status of the mysqld process 
+	that you started in t2.
+
+	mysql> SHUTDOWN;
+
+	The SHUTDOWN command shuts down the server but does not shut down the client. The client reconnects to the server the next time you run a command.
+	
+9. In t2. start the MySQL daemon as a background service by using the mysqld command, specifying command-line options for the following settings:
+
+	Port: 3301
+	Maximum number of connections: 51
+
+	$ mysqld--port=3301--max-connections=51 &
+
+	[1] 25587	
+
+10. In t1, display the values of the port and max_connections system variables.
+
+	mysql> SHOW VARIABLES LIKE 'port';
+
+	port	3301 
+
+	mysql> SHOW VARIABLES LIKE 'max_connections';
+	
+	max_connections 51
+	
+11. In t1, shut down the mysqld process by executing the SHUTDOWN command at the mysql prompt.
+
+	mysql> SHUTDOWN;	
+	
+12. In t2, use systemctl to start the mysqld process and verify that it is running.
+
+	$ systemctl start mysqld
+	$ systemctl status mysqld
+
+		mysqld.service MySQL Server
+		Loaded: loaded (/usr/lib/systemd/system/mysqld.service; enabled; vendor preset: disabled)
+		Active: active (running) since dare-and-time UTC; duration
+
+		..
+
+13. At the mysql prompt in t1, verify that the port and maximum_connections system variables are set to the default values (3306 and 151, respectively).
+
+	mysql> SHOW VARIABLES LIKE 'port';
+
+	port	306 
+
+	mysql> SHOW VARIABLES LIKE 'max_connections';
+
+	max connections  151
+
+----------- Demo 4-2: Modifying the Configuration File   ----------- 
+
+1. In 2, use a text editor to edit the /etc/my.cnf file, adding options that configure the following settings:
+
+	Port: 3302
+	Maximum number of connections: 52
+
+	Modify the contents of the /etc/my.cnf file so that the first lines read as follows:
+
+	[mysqld]
+	port=3302
+	max-connections=52
+	...
+
+2. In 12, use systemctl to restart the MySQL service.
+
+	$ systemctl restart mysqld
+	$ systemctl status mysqld
+
+3. In the mysql prompt in terminal window tf, enter SQL commands to display the values of the port and max_connections variables.
+
+	mysql> SHOW VARIABLES LIKE 'port':
+
+		port 3302 
+
+	mysql> SHOW VARIABLES LIKE 'max_connections';
+
+	max_connections  52
+
+	The variables have the values that you set in the option file.
+
+4. Query the Performance Schema variables_info table for information about the max_connections and port system variables.
+
+	mysql> SELECT FROM performance_schema.variables_info WHERE variable name IN ('max connections', 'port')\G
+
+	VARIABLE NAME: max connections
+	VARIABLE SOURCE: EXPLICIT
+	VARIABLE PATH:/etc/my.cnf
+	MIN VALUE:1
+	MAX VALUE:100000
+	...
+
+	VARIABLE NAME:port
+	VARIABLE SOURCE:EXPLICIT
+	VARIABLE PATH:/etc/my.cnf
+	MIN VALUE:0
+	MAX VALUE:65535
+
+	The variable source value EXPLICIT indicates the variables are set from an option file named with the --defaults-file option.
+
+5. In 12, use a text editdr to edit the /etc/my.cnf file, removing the port and max_connections settings that you configured in step 1. The /etc/my.cnf file should now contain settings similar to those that follow, with any differences that you set in preceding practices:
+
+	[mysqld]
+	innodb_buffer_pool_size=126
+	innodb_buffer_pool_instances=12
+	datadir=/var/lib/mysql
+	socket=/var/lib/mysql/mysql.sock
+	user=mysql
+	# Disabling symbolic-links is recommended to prevent assorted security risks
+	symbolic-links=0
+	innodb_directories='/tablespaces'
+
+	[mysqld_safe]
+	log-error=/var/log/mysqld.log
+	pid-file=/var/run/mysqld/mysqld.pid
+
+	[client]
+	socket=/var/lib/mysql/mysql.sock
+
+6. Close terminal window t2.
+
+	$ exit
+
+7. At the mysql prompt in terminal window 1. execute RESTART to restart the MySQL server.
+
+	mysql> RESTART;
+
+
+8. Verify that the port and max_connections system variables are set to the default values (3306 and 151, respectively).
+
+	mysql> SHOW VARIABLES LIKE 'port';
+
+	port 3306 
+
+	mysql> SHOW VARIABLES LIKE 'max_connections';
+
+	max_connections 151
+
+	As the server takes some time to restart, if you encounter an error connecting to the server, retry the SHOW statement.
+
+	9. Leave the mysql client session open for the next practice.
+
+
+
+
+
+
