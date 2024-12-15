@@ -805,3 +805,212 @@ Notes:
 	rm ~/.mylogin.cnf
 
 13. Leave the Linux terminal window open for the next practice.
+
+
+----------- Demo 4-6: Running Multiple MySQL Servers on the Same Host with systemd   ---------------------------------
+
+1. Use mysqladmin to shut down the running MySQL server.
+
+	$ mysqladmin -uroot -p shutdown
+	  Enter password: oracle
+
+2. Create a new empty directory in the root of your filesystem named mysql. Grant its ownership to the mysql user and group.
+
+	$ mkdir /mysql
+	$ chown mysql:mysql /mysql
+
+3.  Using mysqld, initialize data directories in /mysql/datal, /mysql/data2, /mysql/data3, and /mysql/data4, respectively. 
+	Use the '--initialize-insecure' option (to avoid having to enter randomly generated temporary passwords for each instance) and 
+	the --no-defaults option (to prevent mysqld from using the default settings in /etc/my.cnf).
+
+	$ mysqld --no-defaults --initialize-insecure --user=mysql --datadir=/mysql/datal
+
+		date-and-time 0 (Systen) (MY-013169] [Server] /opt/mysql-commercial- 8.0.18-617-x86_64/bin/mysqld (mysqld 8.0.18-commercial) initializing 
+		of server in progress as process pid
+
+	$ mysqld --no-defaults --initialize-insecure --user=mysql --datadir=/mysql/data2 
+
+		date-and-time 0 (Systen) [MY-013169] (Server) /opt/mysql-commercial- 8.0.18-017-x86_64/bin/mysqld (mysqld 8.0.18-commercial) initializing 
+		of server in progress as process pid
+
+	$ mysqld --no-defaults --initialize-insecure --user=mysql 	--datadir=/mysql/data3
+
+		date-and-time 0 [System] [MY-013169] [Server] /opt/mysql-commercial- 8.0.18-017-x86_64/bin/mysqld (mysqld 8.0.18-commercial) initializing 
+		of server in progress as process pid
+
+		...
+
+	$ mysqld --no-defaults --initialize-insecure --user=mysql --datadir=/mysql/data4
+
+
+4.  Examine the /labs/multi.cnf file that contains the following configuration entries. You will use this configuration file to specify the settings 
+	for four new server instances called serverl, server2, server3, and server4.
+
+The contents of the/labs/multi.enf file are as follows:
+
+	[mysqld@server1]
+	user-mysql
+	socket=/mysql/server1.sock
+	port=3311
+	datadir-/mysql/datal
+	log-error=/mysql/server1.err
+	mysqlx=OFF
+
+	[mysqld@server2]
+	user-mysql
+	socket=/mysql/server2.sock
+	port=3312
+	datadir-/mysql/data2
+	log-error=/mysql/server2.err
+	mysqlx=OFF
+
+	[mysqld@server3]
+	user-mysql
+	socket=/mysql/server3.sock
+	port=3313
+	datadir-/mysql/data3
+	log-error=/mysql/server3.err
+	mysqlx=OFF
+
+	[mysqld@server4]
+	user-mysql
+	socket=/mysql/server4.sock
+	port=3314
+	datadir-/mysql/data4
+	log-error=/mysql/server4.err
+	mysqlx=OFF
+
+5.  Examine the /labs/service-8.0/mysqld@.service file. This is a systemd service unit configuration file. It is similar to the one you used 
+	in the "Configuring the MySQL Service" activity for the lesson titled "Installing MySQL." The main difference is that it enables you to pass 
+	the name of the server as a parameter to systemctl (represented by %I in the file) and reads the appropriate configuration entry 
+	from /labs/multi.cnf.
+	
+	
+			# more /labs/service-8.0/mysqld@.service
+
+				[Unit]
+				Description=MySQL Multi Server for instance i
+				Documentation=man:mysqld(8)
+				Documentation=http://dev.mysql.com/doc/refman/en/using-systemd.html
+				After-network.target
+				After-syslog.target
+
+				[Install]
+				WantedBy=multi-user.target
+
+				[Service]
+				User-mysql
+				Group=mysql
+				PIDFile=/mysql/server%I.pid
+				Type=notify
+
+				#Disable service start and stop timeout logic of systemd for mysqld service.
+				TimeoutSec=0
+
+				#Start main service
+				ExecStart=/usr/local/mysql/bin/mysqld --defaults-file=/labs/multi.cnf --defaults-group-suffix=@%I $MYSQLD_OPTS
+
+				#Use this to switch malloc implementation
+				EnvironmentFile=-/etc/sysconfig/mysql
+
+				#Sets open_files_limit
+				LimitNOFILE = 10000
+				Restart=on-failure
+				RestartPreventExitStatus=1
+
+				#Set environment variable MYSQLD PARENT PID. This is required for restart.
+				Environment=MYSQLD_PARENT_PID=1
+
+				Privatetmp=False
+
+
+6. Copy the/labs/service-8.0/mysqld@.service file to the /usr/lib/systemd/system directory.
+
+	$ cp /labs/service-8.0/mysqld@.service /usr/lib/systemd/system/mysqld.service
+
+7. Execute systemctl daemon-reload to reload all the unit files and re-create the dependency tree.
+
+	$ systemctl daemon-reload
+
+8. Start each new server instance in turn, using an appropriate systemctl command.
+
+	# systemctl start mysqld@serverl
+	# systemctl start mysqld@server2
+	# systemctl start mysqld@server3
+	# systemctl start mysqld@server4
+
+9. Use the Linux pe command to list the running mysqld processes.
+
+	$ ps aux |grep mysqld
+
+		mysql PID ... /usr/local/mysql/bin/mysqld --defaults-file=/labs/multi.cnf --defaults-group-suffix-@serverl
+		.......
+
+	- The output of the ps command shows five running servers: the existing instance that uses the /etc/my.cnf file and servers 1-4 that 
+	  use the settings in the /labs/multi.enf file.
+
+10. Connect to the server3 instance using the appropriate socket file, as specified in /labs/multi.cnf.
+
+	# mysql -uroot -S/mysql/server3.sock
+
+		Welcome to the MySQL. monitor. Commands end with; or \g.
+
+		Your MySQL connection id is 9
+
+		...
+
+		mysql>
+		
+11. Enter a SQL command to display the port number that the MySQL instance is running on.
+
+	mysql> SELECT &&port;
+
+	@@port | 3313 |
+
+12. Exit the mysql client connected to server3.
+
+	mysql> EXIT
+
+
+13. Use systemctl to stop serverl.
+
+	# systemctl stop mysqld@serverl	
+	
+14. Enter the following systemctl command with a wildcard for the server number (*) to view the status of servers 1-4:
+
+	# systemctl status mysqld@server*
+
+	Servers 2, 3, and 4 are running. Server 1 does not appear in the list.	[earlier stopped]
+		
+15. Use systemctl to view the status of serverl.
+
+	# systemctl status mysqld@server1
+
+	The outout shows that serverl is inactive (stopped).
+
+16. Enter systemctl commands with a wildcard for the server number (*) to stop all the servers and verify that they are stopped.
+
+	# systemctl stop mysqld@server*
+	# systemctl status mysqld@server*
+
+17. Use the Linux ps command to list the running mysqld processes.
+
+	# ps aux | grep mysqld
+
+
+	There is no running mysqld processes.
+
+18 . Start the single instance MySQL server using systemctl command.
+
+	# systemctl start mysqld
+
+19. Close all open Linux terminal windows.		
+	
+	
+	
+	
+	
+	
+	
+	
+	
