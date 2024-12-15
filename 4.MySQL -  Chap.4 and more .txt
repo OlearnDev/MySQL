@@ -684,4 +684,124 @@ The max_connections entry in the mysqld-auto.cnf file now shows that the value h
 	The max_connections variable is now COMPILED, because it is not configured in any startup file.
 	As the server takes some time to restart, if you encounter an error connecting to the server, retry the SELECT statement.
 
-13. Leave the mysql client session open for the next practice.
+
+----------- Demo 4-5: Configuring the Client   ----------- 
+
+1. Execute the STATUS command at the mysql client and use its output to determine the method the client uses to connect to the MySQL server.
+
+	mysql> STATUS
+
+		mysql Ver version on x86_64 (MySQL Enterprise Server Commercial)
+		Connection id:8
+		Current database:
+		Current user:root@localhost
+		SSL:Not in use
+		...
+		Server version: version-commercial MySQL Enterprise 
+		Protocol version:10
+
+		Connection: Localhost via UNIX socket				**.
+		Server characterset:utf8mb4
+		..
+		UNIX socket: /var/lib/mysql/mysql.sock
+
+	Note that the connection uses a UNIX socket file at the following location: /var/lib/mysql/mysql.sock.
+
+2. Exit the mysql client.
+
+	mysql> EXIT
+
+3. Using a text editor, create the file ~/.my.cnf with the following contents:
+
+	[mysql]
+	prompt='\U[\d] > '
+	protocol=tcp
+	user root
+	password oracle
+
+	When you are logged in as root in Linux, the tilde (~) refers to the /root directory. If you are logged in as a different user, 
+	the tilde refers to that user''s $HOME directory.
+
+4. Launch the mysql client with no command-line arguments.
+
+	$ mysql
+
+		Welcome to the MySQL monitor. Commands end with or \g.
+		...
+		root@localhost[(none)]>
+
+Notes:
+
+	- You did not provide a password at the command line. The mysql client used the password that you placed in the option file.
+	- The mysql> prompt that previously appeared in the mysql client has been replaced with a prompt that contains the username, the host from 
+		which you connected, and the default database. As you have not yet selected a database, the prompt displays (none).
+
+5. Change the default database to mysql.
+
+	root@localhost[(none)]> USE mysql
+
+		Reading table information for completion of table and column names
+		You can turn off this feature to get a quicker startup with -A
+
+		Database changed
+
+	root@localhost [mysql]>
+
+	The prompt has changed to reflect the changed default database.
+
+6. Execute the STATUS command again to see how the client connects to the server.
+
+	root@localhost [mysql]> STATUS
+
+		mysql Ver version on x86_64 (MySQL Enterprise Server Commercial)
+		...
+		Connection:		localhost via TCP/IP
+		TCP port: 3306
+
+	Note that the connection uses TCP/IP and the default port number 3306. You specified protocol=tcp in the option file but not the port option, 
+	so the mysql client connects using the default port.	
+
+7. Exit the mysql client.
+
+	root@localhost [mysql]> EXIT
+
+8. The password in the configuration file is in plain text, which is not a secure configuration. Delete the user and password options from 
+	your user''s-/.my.cnf configuration file.
+
+		Edit the~/.my.cnf file so that it contains the following text:
+
+		[mysql]
+		prompt='\U[\d) >'
+		protocol=tcp
+
+9. Use the mysql_config_editor program to create a login path named mysql that specifies the user and password values that you deleted from 
+	the plain text configuration file in the preceding step.
+
+	Enter the following command at the Linux terminal prompt and receive the results shown:
+
+		$ mysql_config_editor set --login-path=mysql --user=root --password
+		  Enter password: oracle
+
+	This command creates an encrypted file called ~/.mylogin.cnf in your home directory that contains the user, port, and password settings in 
+	an option group called [mysql]. The mysql client reads this option group by default, so you do not need to specify the mysql login path when 
+	you launch the client.
+
+10. Launch the mysql client with no command-line arguments.
+
+	$ mysql
+
+		Welcome to the MySQL monitor. Commands end with or \g.
+
+	root@localhost[(none)]>
+
+	The client successfully connects using the encrypted credentials in the login path.
+
+11. Exit the mysql client.
+
+		root@localhost [mysql] > EXIT
+
+12. Delete the ~/.my.cnfand~/.mylogin.cnf files.
+
+	rm ~/.mylogin.cnf
+
+13. Leave the Linux terminal window open for the next practice.
